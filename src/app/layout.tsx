@@ -24,10 +24,15 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        <link href='https://fonts.googleapis.com/css?family=Roboto Mono' rel='stylesheet' />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
-        {children}
+        <div className="min-h-screen w-full flex justify-center items-center">
+          {children}
+        </div>
       </body>
     </html>
   );

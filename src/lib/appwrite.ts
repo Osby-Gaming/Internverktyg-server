@@ -13,6 +13,72 @@ export const getAppwriteClient = () => {
     return client;
 }
 
+export const getLoggedInAccount = async () => {
+    try {
+        const client = getAppwriteClient();
+        const account = new Account(client);
+
+        const user = await account.get();
+
+        return {
+            status: 200,
+            message: "Account gotten successfully",
+            data: user,
+            error: null
+        };
+    } catch (error: any) {
+        console.log(error);
+        if (error.name && error.name === 'AppwriteException') {
+            return {
+                status: error.code,
+                message: error.response.message,
+                data: null,
+                error
+            }
+        }
+
+        return {
+            status: 500,
+            message: "Error",
+            data: null,
+            error
+        };
+    }
+}
+
+export const getJWT = async () => {
+    try {
+        const client = getAppwriteClient();
+        const account = new Account(client);
+
+        const token = await account.createJWT();
+
+        return {
+            status: 200,
+            message: "Token gotten successfully",
+            data: token,
+            error: null
+        };
+    } catch (error: any) {
+        console.log(error);
+        if (error.name && error.name === 'AppwriteException') {
+            return {
+                status: error.code,
+                message: error.response.message,
+                data: null,
+                error
+            }
+        }
+
+        return {
+            status: 500,
+            message: "Error",
+            data: null,
+            error
+        };
+    }
+}
+
 export const createAccount = async (email: string, password: string) => {
     try {
         const client = getAppwriteClient();
@@ -80,6 +146,41 @@ export const loginAccount = async (email: string, password: string) => {
         return {
             status: 500,
             message: "Account not created",
+            data: null,
+            error
+        };
+    }
+}
+
+export const logoutAccount = async () => {
+    try {
+        const client = getAppwriteClient();
+        const account = new Account(client);
+        
+        const result = await account.deleteSession(
+            'current' // sessionId
+        );
+
+        return {
+            status: 200,
+            message: "Logged out successfully",
+            data: result,
+            error: null
+        };
+    } catch (error: any) {
+        console.log(error);
+        if (error.name && error.name === 'AppwriteException') {
+            return {
+                status: error.code,
+                message: error.response.message,
+                data: null,
+                error
+            }
+        }
+
+        return {
+            status: 500,
+            message: "Logout failed",
             data: null,
             error
         };

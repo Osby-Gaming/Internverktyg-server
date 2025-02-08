@@ -3,19 +3,29 @@
 @tailwind utilities;
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
-}
-
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+  --background: #171717;
+  --foreground: #FFFFFF;
+  --button: #00A576;
+  --input: #454545;
 }
 
 body {
   color: var(--foreground);
   background: var(--background);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: 'Roboto Mono';
+}
+
+input {
+  color: var(--background);
+  background-color: var(--input);
+  @apply rounded py-0.5 px-2;
+}
+
+button {
+  background: var(--button);
+  @apply py-2 px-6 rounded-lg;
+}
+
+.buttonGray {
+  background: #3E3E3E;
 }

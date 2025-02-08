@@ -1,9 +1,12 @@
 "use client";
 
-import { loginAccount } from "@/lib/appwrite.ts";
-import { useState } from "react";
+import { getLoggedInAccount, loginAccount } from "@/lib/appwrite.ts";
+import { useRouter } from "next/navigation";
+import { useEffect, useState } from "react";
 
-export default function LoginTest() {
+export default function Login() {
+  const router = useRouter()
+  
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
 
@@ -23,13 +26,17 @@ export default function LoginTest() {
     const result = await loginAccount(email, password);
 
     if (result.status !== 200) {
+      if (result.message.startsWith('Invalid')) {
+        return setError('Fel lösenord eller mejladress');
+      }
+
       return setError(result.message);
     }
 
     setEmail('');
     setPassword('');
 
-    
+    router.push('/');
   }
 
   function enterSubmitWrapper() {
@@ -40,44 +47,56 @@ export default function LoginTest() {
     submit();
   }
 
+  useEffect(() => {
+    getLoggedInAccount().then(res => {
+      if (res.message === 'Account gotten successfully') {
+        router.push('/');
+      }
+    })
+  })
+
   return (
-    <form id="loginForm">
-      <label htmlFor="email">Username:</label>
-      <input type="text" id="email" name="email"
-        placeholder="Enter your email" required onChange={(e) => {
-          setEmail(e.target.value);
+      <form id="loginForm">
+        <label htmlFor="email">Email:</label>
+        <br />
+        <input type="text" id="email" name="email"
+          placeholder="Enter your email" required onChange={(e) => {
+            setEmail(e.target.value);
 
-          if (e.target.value.length > 0 && password.length > 0) {
-            setButtonClickable(true);
-          } else {
-            setButtonClickable(false);
-          }
-        }} onKeyDown={(e) => {
-          if (e.key === "Enter")
-            enterSubmitWrapper();
-        }} />
-      <br />
+            if (e.target.value.length > 0 && password.length > 0) {
+              setButtonClickable(true);
+            } else {
+              setButtonClickable(false);
+            }
+          }} onKeyDown={(e) => {
+            if (e.key === "Enter")
+              enterSubmitWrapper();
+          }} />
+        <br />
 
-      <label htmlFor="password">Password:</label>
-      <input type="password" id="password" name="password"
-        placeholder="Enter your Password" required onChange={(e) => {
-          setPassword(e.target.value);
+        <label className="" htmlFor="password">Password:</label>
+        <br />
+        <input type="password" id="password" name="password"
+          placeholder="Enter your Password" required onChange={(e) => {
+            setPassword(e.target.value);
 
-          if (email.length > 0 && e.target.value.length > 0) {
-            setButtonClickable(true);
-          } else {
-            setButtonClickable(false);
-          }
-        }} onKeyDown={(e) => {
-          if (e.key === "Enter")
-            enterSubmitWrapper();
-        }} />
-      <br />
+            if (email.length > 0 && e.target.value.length > 0) {
+              setButtonClickable(true);
+            } else {
+              setButtonClickable(false);
+            }
+          }} onKeyDown={(e) => {
+            if (e.key === "Enter")
+              enterSubmitWrapper();
+          }} />
+        <br />
 
-      <p className="text-red-800">{error}</p>
-      <br />
+        <p className="text-red-600 absolute text-sm">{error}</p>
+        <br />
 
-      <button type="submit" form="form1" value="Submit" onClick={submit} disabled={!buttonClickable}>Submit</button>
-    </form>
+        <div className="flex justify-center">
+          <button type="submit" form="form1" value="Submit" onClick={submit} disabled={!buttonClickable}>Submit</button>
+        </div>
+      </form>
   );
 }
