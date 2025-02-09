@@ -29,3 +29,7 @@ button {
 .buttonGray {
   background: #3E3E3E;
 }
+
+.error {
+  @apply text-red-600;
+}

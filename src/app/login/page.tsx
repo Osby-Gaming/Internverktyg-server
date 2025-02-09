@@ -91,7 +91,7 @@ export default function Login() {
           }} />
         <br />
 
-        <p className="text-red-600 absolute text-sm">{error}</p>
+        <p className="error absolute text-sm">{error}</p>
         <br />
 
         <div className="flex justify-center">
