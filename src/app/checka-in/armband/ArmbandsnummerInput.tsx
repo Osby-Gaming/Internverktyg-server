@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from "react";
-import NumpadInput from "./NumpadInput";
+import NumpadInput from "../NumpadInput";
 import { validate } from "./actions";
 import { useRouter } from "next/navigation";
 
@@ -10,20 +10,11 @@ export default function ArmbandsnummerInput() {
     const [input, setInput] = useState("");
     const [error, setError] = useState("");
 
-    function inputToPersonnummer(inp: string): string {
-        const template = "ÅÅÅÅMMDD-XXXX"
-        if (inp.length <= 8) {
-            return inp + template.slice(inp.length);
-        }
-
-        return inp.slice(0, 8) + "-" + inp.slice(8) + "X".repeat(12 - inp.length);
+    function inputToFormatted(): string {
+        return "0".repeat(4 - input.length) + input;
     }
 
     async function submit() {
-        if (input.length !== 12) {
-            return setError("Felaktigt personnummer");
-        }
-
         const validationResult = await validate(input);
         if (!validationResult.data) {
             return setError(validationResult.message);
@@ -33,17 +24,17 @@ export default function ArmbandsnummerInput() {
     }
 
     function backspace() {
-        if (input.length > 0) setInput(input.slice(0, input.length - 1))
+        if (input.length > 0) setInput(input.slice(0, input.length - 1));
     }
 
     function hInput(value: string) {
-        if (input.length < 12) setInput(input + value);
+        if (input.length < 4) setInput(input + value);
     }
 
     return (
         <>
             <div className="w-full flex justify-center items-center">
-                <input className="text-4xl w-fit p-4 text-center text-white" type="text" value={inputToPersonnummer(input)} readOnly onKeyDown={(e) => {
+                <input className="text-4xl w-fit p-4 text-center text-white" type="text" value={inputToFormatted()} readOnly onKeyDown={(e) => {
                     if ("0123456789".includes(e.key)) {
                         hInput(e.key);
                     } else if (e.key == "Backspace" || e.key == "Delete") {

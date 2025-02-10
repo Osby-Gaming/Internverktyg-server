@@ -1,4 +1,5 @@
 import { Client, Account, ID } from "appwrite";
+import { response } from "./types";
 
 export const getAppwriteClient = () => {
     const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID;
@@ -13,7 +14,7 @@ export const getAppwriteClient = () => {
     return client;
 }
 
-export const getLoggedInAccount = async () => {
+export const getLoggedInAccount = async (): Promise<response> => {
     try {
         const client = getAppwriteClient();
         const account = new Account(client);
@@ -46,7 +47,7 @@ export const getLoggedInAccount = async () => {
     }
 }
 
-export const getJWT = async () => {
+export const getJWT = async (): Promise<response>  => {
     try {
         const client = getAppwriteClient();
         const account = new Account(client);
@@ -79,7 +80,7 @@ export const getJWT = async () => {
     }
 }
 
-export const createAccount = async (email: string, password: string) => {
+export const createAccount = async (email: string, password: string): Promise<response>  => {
     try {
         const client = getAppwriteClient();
         const account = new Account(client);
@@ -116,7 +117,7 @@ export const createAccount = async (email: string, password: string) => {
     }
 }
 
-export const loginAccount = async (email: string, password: string) => {
+export const loginAccount = async (email: string, password: string): Promise<response>  => {
     try {
         const client = getAppwriteClient();
         const account = new Account(client);
@@ -152,7 +153,7 @@ export const loginAccount = async (email: string, password: string) => {
     }
 }
 
-export const logoutAccount = async () => {
+export const logoutAccount = async (): Promise<response> => {
     try {
         const client = getAppwriteClient();
         const account = new Account(client);

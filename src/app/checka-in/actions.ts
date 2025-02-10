@@ -26,8 +26,8 @@ export async function validate(personnummer: string): Promise<response> {
             body: JSON.stringify({
                 request: {
                     action: "confirm_membership",
-                    association_number: "F240375-7",
-                    api_key: "6WHJse3ZhaAnr4K1M5EmRHyRQbQWN0vG",
+                    association_number: process.env.SVEROK_F_ID,
+                    api_key: process.env.SVEROK_API_NYCKEL,
                     socialsecuritynumber: personnummer
                 }
             })
