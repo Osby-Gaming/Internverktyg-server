@@ -1,6 +1,6 @@
 import Link from "next/link";
 
-export default function Home() {
+export default function Page() {
   return (
     <div>
       <div className="md:hidden lg:grid grid-cols-3 grid-rows-2">

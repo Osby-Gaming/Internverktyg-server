@@ -1,6 +1,6 @@
 "use client";
 
-import { logoutAccount } from "@/lib/appwrite";
+import { logoutAccount } from "@/lib/appwrite_client";
 import { useRouter } from "next/navigation";
 
 export default function LogoutButton() {

@@ -1,10 +1,10 @@
 "use client";
 
-import { getLoggedInAccount, loginAccount } from "@/lib/appwrite.ts";
+import { getLoggedInAccount, loginAccount } from "@/lib/appwrite_client";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 
-export default function Login() {
+export default function Page() {
   const router = useRouter()
   
   const [email, setEmail] = useState('');

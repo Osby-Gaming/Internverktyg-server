@@ -1,11 +1,6 @@
 'use server'
 
-type response = {
-    status: number;
-    message: string;
-    data: any;
-    error: any;
-}
+import { response } from "@/lib/types";
 
 export async function validate(personnummer: string): Promise<response> {
     if (!personnummer || !personnummer.match(/^\d{12}$/)) {

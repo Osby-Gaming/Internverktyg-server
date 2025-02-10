@@ -1,6 +1,6 @@
 import LogoutButton from "./LogoutButton";
 
-export default function Home() {
+export default function Page() {
     return (
         <div>
             <p className="mb-6">Säker på att du vill logga ut?</p>

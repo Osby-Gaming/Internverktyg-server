@@ -1,40 +1,49 @@
 'use client';
 
 import { useState } from "react";
-import NumpadInput from "../NumpadInput";
+import NumpadInput from "./NumpadInput";
 import { validate } from "./actions";
 import { useRouter } from "next/navigation";
 
-export default function ArmbandsnummerInput() {
+export default function SSNInput() {
     const router = useRouter();
     const [input, setInput] = useState("");
     const [error, setError] = useState("");
 
-    function inputToFormatted(): string {
-        return "0".repeat(4 - input.length) + input;
+    function inputToPersonnummer(): string {
+        const template = "ÅÅÅÅMMDD-XXXX"
+        if (input.length <= 8) {
+            return input + template.slice(input.length);
+        }
+
+        return input.slice(0, 8) + "-" + input.slice(8) + "X".repeat(12 - input.length);
     }
 
     async function submit() {
+        if (input.length !== 12) {
+            return setError("Felaktigt personnummer");
+        }
+
         const validationResult = await validate(input);
         if (!validationResult.data) {
             return setError(validationResult.message);
         }
 
-        router.push("/checka-in/armband?ssn=" + input);
+        router.push("/checka-in/wristband?ssn=" + input);
     }
 
     function backspace() {
-        if (input.length > 0) setInput(input.slice(0, input.length - 1));
+        if (input.length > 0) setInput(input.slice(0, input.length - 1))
     }
 
     function hInput(value: string) {
-        if (input.length < 4) setInput(input + value);
+        if (input.length < 12) setInput(input + value);
     }
 
     return (
         <>
             <div className="w-full flex justify-center items-center">
-                <input className="text-4xl w-fit p-4 text-center text-white" type="text" value={inputToFormatted()} readOnly onKeyDown={(e) => {
+                <input className="text-4xl w-fit p-4 text-center text-white" type="text" value={inputToPersonnummer()} readOnly onKeyDown={(e) => {
                     if ("0123456789".includes(e.key)) {
                         hInput(e.key);
                     } else if (e.key == "Backspace" || e.key == "Delete") {

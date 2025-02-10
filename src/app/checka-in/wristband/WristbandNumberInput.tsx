@@ -1,27 +1,24 @@
 'use client';
 
 import { useState } from "react";
-import NumpadInput from "./NumpadInput";
+import NumpadInput from "../NumpadInput";
 import { validate } from "./actions";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 
-export default function PersonnummerInput() {
+export default function WristbandNumberInput() {
     const router = useRouter();
+    const searchParams = useSearchParams();
+
     const [input, setInput] = useState("");
     const [error, setError] = useState("");
 
-    function inputToPersonnummer(): string {
-        const template = "ÅÅÅÅMMDD-XXXX"
-        if (input.length <= 8) {
-            return input + template.slice(input.length);
-        }
-
-        return input.slice(0, 8) + "-" + input.slice(8) + "X".repeat(12 - input.length);
+    function inputToFormatted(): string {
+        return "0".repeat(4 - input.length) + input;
     }
 
     async function submit() {
-        if (input.length !== 12) {
-            return setError("Felaktigt personnummer");
+        if (!input) {
+            return setError("Armbandsnummer saknas");
         }
 
         const validationResult = await validate(input);
@@ -29,21 +26,22 @@ export default function PersonnummerInput() {
             return setError(validationResult.message);
         }
 
-        router.push("/checka-in/armband?ssn=" + input);
+        router.push("/checka-in/final?ssn=" + searchParams.get("ssn") + "&id=" + input);
     }
 
     function backspace() {
-        if (input.length > 0) setInput(input.slice(0, input.length - 1))
+        if (input.length > 0) setInput(input.slice(0, input.length - 1));
     }
 
     function hInput(value: string) {
-        if (input.length < 12) setInput(input + value);
+        if (!input && value === "0") return;
+        if (input.length < 4) setInput(input + value);
     }
 
     return (
         <>
             <div className="w-full flex justify-center items-center">
-                <input className="text-4xl w-fit p-4 text-center text-white" type="text" value={inputToPersonnummer()} readOnly onKeyDown={(e) => {
+                <input className="text-4xl w-fit p-4 text-center text-white" type="text" value={inputToFormatted()} readOnly onKeyDown={(e) => {
                     if ("0123456789".includes(e.key)) {
                         hInput(e.key);
                     } else if (e.key == "Backspace" || e.key == "Delete") {
