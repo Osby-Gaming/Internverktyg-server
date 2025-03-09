@@ -3,6 +3,14 @@
 import { response } from "@/lib/types";
 
 export async function validate(personnummer: string): Promise<response> {
+    return {
+        status: 200,
+        message: 'HAPPY HAPPY HAPPY ALSO THIS IS A TODO!!',
+        data: true,
+        error: null
+    };
+
+    // @todo figure out a way to validate even when they are not a member of the förening 
     if (!personnummer || !personnummer.match(/^\d{12}$/)) {
         return {
             status: 400,

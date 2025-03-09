@@ -1,6 +1,6 @@
 'use client'
 
-import { checkInWristband, getParticipant } from "@/lib/appwrite_client";
+import { checkInParticipant, getParticipant } from "@/lib/appwrite_client";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
@@ -42,10 +42,13 @@ export default function NextButton() {
                     return setError("Deltagaren har redan blivit incheckad");
                 }
 
-                const wResult = await checkInWristband(participant.$id, parseInt(wId));
+                // Potential todo is to check if wristband has been used at this stage,
+                // but this is unlikely to be a problem and is only for polishing the project
 
-                if (wResult.status !== 200) {
-                    return setError(wResult.message);
+                const checkinResult = await checkInParticipant(participant.$id, parseInt(wId));
+
+                if (checkinResult.status !== 200) {
+                    return setError(checkinResult.message);
                 }
 
                 router.push("/checka-in/confirmation");

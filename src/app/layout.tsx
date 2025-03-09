@@ -6,6 +6,11 @@ export const metadata: Metadata = {
   description: "Cool stuff",
 };
 
+import { config } from '@fortawesome/fontawesome-svg-core'
+import '@fortawesome/fontawesome-svg-core/styles.css'
+import AuthRouter from "@/lib/components/AuthRouter";
+config.autoAddCss = false
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -20,7 +25,9 @@ export default function RootLayout({
         className={`antialiased`}
       >
         <div className="min-h-screen w-full flex justify-center items-center">
-          {children}
+          <AuthRouter>
+            {children}
+          </AuthRouter>
         </div>
       </body>
     </html>

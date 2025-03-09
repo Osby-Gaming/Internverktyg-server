@@ -4,6 +4,7 @@ import { useState } from "react";
 import NumpadInput from "./NumpadInput";
 import { validate } from "./actions";
 import { useRouter } from "next/navigation";
+import { getParticipant } from "@/lib/appwrite_client";
 
 export default function SSNInput() {
     const router = useRouter();
@@ -22,6 +23,22 @@ export default function SSNInput() {
     async function submit() {
         if (input.length !== 12) {
             return setError("Felaktigt personnummer");
+        }
+
+        const participantResult = await getParticipant(input);
+
+        if (participantResult.status !== 200) {
+            return setError(participantResult.message);
+        }
+
+        const participant = participantResult.data;
+
+        if (!participant) {
+            return setError("Deltagaren hittades inte");
+        }
+
+        if (participant.wristband != null) {
+            return setError("Deltagaren har redan blivit incheckad");
         }
 
         const validationResult = await validate(input);

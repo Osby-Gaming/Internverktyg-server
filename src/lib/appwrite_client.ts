@@ -273,7 +273,7 @@ export async function getParticipant(ssn: string, include?: string[]) {
 
         return {
             status: 200,
-            message: "Created successfully",
+            message: "Gotten successfully",
             data: result?.documents[0],
             error: null
         };
@@ -289,14 +289,58 @@ export async function getParticipant(ssn: string, include?: string[]) {
 
         return {
             status: 500,
-            message: "Document not created",
+            message: "Document not retrieved",
             data: null,
             error
         };
     }
 }
 
-export async function checkInWristband(participant: string, number: number) {
+export async function getWristband(number: number, include?: string[]) {
+    try {
+        const client = getAppwriteClient();
+        const databases = new Databases(client);
+
+        const queries = [
+            Query.equal('number', number)
+        ];
+
+        if (include) {
+            queries.push(Query.select(include));
+        }
+        
+        const result = await databases.listDocuments(
+            DATABASE_ID,
+            COLLECTION_WRISTBANDS_ID,
+            queries
+        );
+
+        return {
+            status: 200,
+            message: "Retrieved successfully",
+            data: result?.documents[0],
+            error: null
+        };
+    } catch (error: any) {
+        if (error.name && error.name === 'AppwriteException') {
+            return {
+                status: error.code,
+                message: error.response.message,
+                data: null,
+                error
+            }
+        }
+
+        return {
+            status: 500,
+            message: "Document not retrieved",
+            data: null,
+            error
+        };
+    }
+}
+
+export async function checkInParticipant(participant: string, wristbandID: number) {
     try {
         const client = getAppwriteClient();
         const databases = new Databases(client);
@@ -306,7 +350,7 @@ export async function checkInWristband(participant: string, number: number) {
             COLLECTION_WRISTBANDS_ID,
             ID.unique(),
             {
-                number,
+                number: wristbandID,
                 participant
             }
         );

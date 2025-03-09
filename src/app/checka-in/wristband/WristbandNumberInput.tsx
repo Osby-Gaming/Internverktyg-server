@@ -2,8 +2,8 @@
 
 import { useState } from "react";
 import NumpadInput from "../NumpadInput";
-import { validate } from "./actions";
 import { useRouter, useSearchParams } from "next/navigation";
+import { getWristband } from "@/lib/appwrite_client";
 
 export default function WristbandNumberInput() {
     const router = useRouter();
@@ -21,9 +21,16 @@ export default function WristbandNumberInput() {
             return setError("Armbandsnummer saknas");
         }
 
-        const validationResult = await validate(input);
-        if (!validationResult.data) {
-            return setError(validationResult.message);
+        const wristbandResult = await getWristband(parseInt(input));
+
+        if (wristbandResult.status !== 200) {
+            return setError(wristbandResult.message);
+        }
+
+        const wristband = wristbandResult.data;
+
+        if (wristband) {
+            return setError("Bandet är redan använt");
         }
 
         router.push("/checka-in/final?ssn=" + searchParams.get("ssn") + "&id=" + input);
