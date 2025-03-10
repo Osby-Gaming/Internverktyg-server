@@ -4,6 +4,7 @@ import { response } from "./types";
 const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || '';
 const COLLECTION_PARTICIPANTS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_PARTICIPANTS_ID || '';
 const COLLECTION_WRISTBANDS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_WRISTBANDS_ID || '';
+const COLLECTION_KIOSK_ITEMS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_KIOSK_ITEMS_ID || '';
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
 
 if (!DATABASE_ID) {
@@ -319,6 +320,48 @@ export async function getWristband(number: number, include?: string[]) {
             status: 200,
             message: "Retrieved successfully",
             data: result?.documents[0],
+            error: null
+        };
+    } catch (error: any) {
+        if (error.name && error.name === 'AppwriteException') {
+            return {
+                status: error.code,
+                message: error.response.message,
+                data: null,
+                error
+            }
+        }
+
+        return {
+            status: 500,
+            message: "Document not retrieved",
+            data: null,
+            error
+        };
+    }
+}
+
+export async function getKioskItems(include?: string[]) {
+    try {
+        const client = getAppwriteClient();
+        const databases = new Databases(client);
+
+        const queries = [];
+
+        if (include) {
+            queries.push(Query.select(include));
+        }
+        
+        const result = await databases.listDocuments(
+            DATABASE_ID,
+            COLLECTION_KIOSK_ITEMS_ID,
+            queries
+        );
+
+        return {
+            status: 200,
+            message: "Retrieved successfully",
+            data: result.documents,
             error: null
         };
     } catch (error: any) {

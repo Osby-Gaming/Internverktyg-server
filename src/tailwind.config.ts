@@ -12,6 +12,7 @@ export default {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        kiosk_item_background: "#262626"
       },
     },
   },
