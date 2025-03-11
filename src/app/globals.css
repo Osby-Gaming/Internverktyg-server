@@ -18,12 +18,13 @@ body {
 input {
   color: var(--background);
   background-color: var(--input);
-  @apply rounded py-0.5 px-2;
+  box-shadow: inset 0px 0px 10px rgba(24, 24, 24, 0.9);
+  @apply rounded-xl py-0.5 px-2 text-white;
 }
 
 button {
   background: var(--button);
-  @apply py-2 px-6 rounded-lg;
+  @apply py-2 px-6 rounded-lg select-none disabled:cursor-not-allowed disabled:opacity-70;
 }
 
 .buttonGray {
@@ -64,4 +65,8 @@ button {
 
 ::-webkit-scrollbar-thumb:hover {
   background: #FFD;
+}
+
+.thin-text {
+  -webkit-text-stroke: 1px var(--background); 
 }

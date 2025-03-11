@@ -5,7 +5,7 @@ import { Models } from "appwrite";
 import { useEffect, useState } from "react";
 import Item from "./Item";
 
-export default function Items({ handleAdd }: {handleAdd: (item: Models.Document) => void}) {
+export default function ItemGrid({ handleAdd }: {handleAdd: (item: Models.Document) => void}) {
     const [items, setItems] = useState<Models.Document[]>([]);
 
     useEffect(() => {
