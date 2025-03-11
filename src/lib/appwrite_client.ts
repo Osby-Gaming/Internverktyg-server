@@ -149,7 +149,7 @@ export const loginAccount = async (email: string, password: string): Promise<res
 
         return {
             status: 500,
-            message: "Account not created",
+            message: "Login failed",
             data: null,
             error
         };

@@ -5,7 +5,7 @@ import { Models } from "appwrite";
 import { useEffect, useState } from "react";
 import Item from "./Item";
 
-export default function Items() {
+export default function Items({ handleAdd }: {handleAdd: (item: Models.Document) => void}) {
     const [items, setItems] = useState<Models.Document[]>([]);
 
     useEffect(() => {
@@ -21,7 +21,8 @@ export default function Items() {
     }, []);
 
     const cols = Math.ceil(items.length*12 / 2);
-
+    
+    /* Add tabindex functionality for better accessibility */
     return (
         <div className="grid grid-rows-2" style={{
             width: 14 * cols + "vw",
@@ -29,18 +30,18 @@ export default function Items() {
         }}>
             {items.map((item) => (
                 <>
-                <Item data={item} />
-                <Item data={item} />
-                <Item data={item} />
-                <Item data={item} />
-                <Item data={item} />
-                <Item data={item} />
-                <Item data={item} />
-                <Item data={item} />
-                <Item data={item} />
-                <Item data={item} />
-                <Item data={item} />
-                <Item data={item} />
+                <Item data={item} onClick={() => handleAdd(item)}/>
+                <Item data={item} onClick={() => handleAdd(item)}/>
+                <Item data={item} onClick={() => handleAdd(item)}/>
+                <Item data={item} onClick={() => handleAdd(item)}/>
+                <Item data={item} onClick={() => handleAdd(item)}/>
+                <Item data={item} onClick={() => handleAdd(item)}/>
+                <Item data={item} onClick={() => handleAdd(item)}/>
+                <Item data={item} onClick={() => handleAdd(item)}/>
+                <Item data={item} onClick={() => handleAdd(item)}/>
+                <Item data={item} onClick={() => handleAdd(item)}/>
+                <Item data={item} onClick={() => handleAdd(item)}/>
+                <Item data={item} onClick={() => handleAdd(item)}/>
                 </>
             ))}
         </div>
