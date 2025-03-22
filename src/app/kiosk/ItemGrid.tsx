@@ -25,7 +25,7 @@ export default function ItemGrid({ handleAdd }: {handleAdd: (item: Models.Docume
     /* Add tabindex functionality for better accessibility */
     return (
         <div className="grid grid-rows-2" style={{
-            width: 14 * cols + "vw",
+            width: 14 * cols + "rem",
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr)`
         }}>
             {items.map((item) => (

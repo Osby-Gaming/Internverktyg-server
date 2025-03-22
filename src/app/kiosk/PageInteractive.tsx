@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import ItemGrid from "./ItemGrid";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
@@ -18,8 +18,8 @@ export default function Page() {
     return (
         <>
             <div className="flex">
-                <div className="w-[58vw] height-[65vh]">
-                    <div className="min-h-[65vh] overflow-x-scroll whitespace-nowrap overflow-visible">
+                <div className="w-[58rem]">
+                    <div className="min-h-[32rem] overflow-x-scroll whitespace-nowrap overflow-visible">
                         <ItemGrid handleAdd={(item) => {
                             const checkoutItemsCopy = { ...checkoutItems };
 
@@ -37,7 +37,7 @@ export default function Page() {
                     </div>
                 </div>
                 <div className="w-[2vw]"></div>
-                <div className="w-[30vw] height-[65vh] relative">
+                <div className="w-[30rem] relative">
                     <div className="absolute z-10 w-full h-full bg-[#181818] rounded-3xl">
                         <ul>
                             {Object.keys(checkoutItems).map((i) =>
@@ -57,7 +57,7 @@ export default function Page() {
 
                                         setCheckoutItems(checkoutItemsCopy);
                                     }}>
-                                        <FontAwesomeIcon icon={faMinus} size="2x" className={"mr-3 text-red-600 cursor-pointer"} />
+                                        <FontAwesomeIcon icon={faMinus} size="xl" className={"mr-3 text-red-600 cursor-pointer"} />
                                     </button>
                                     <button style={{
                                         all: 'unset'
@@ -74,13 +74,13 @@ export default function Page() {
 
                                         setCheckoutItems(checkoutItemsCopy);
                                     }}>
-                                        <FontAwesomeIcon icon={faPlus} size="2x" className={(checkoutItems[i].amount === checkoutItems[i].stock ? "text-teal-200 cursor-not-allowed" : "text-teal-400 cursor-pointer")} />
+                                        <FontAwesomeIcon icon={faPlus} size="xl" className={(checkoutItems[i].amount === checkoutItems[i].stock ? "text-teal-200 cursor-not-allowed" : "text-teal-400 cursor-pointer")} />
                                     </button>
                                 </li>
                             )}
                         </ul>
                     </div>
-                    <div className="absolute z-20 h-full w-[25vw] right-0 p-4 px-10 bg-[#262626] min-height-[90vh] rounded-3xl">
+                    <div className="absolute z-20 h-full w-[25rem] right-0 p-4 px-10 bg-[#262626] rounded-3xl">
                         <ul className="list-disc">
                             {Object.keys(checkoutItems).map((i) =>
                                 <li key={i} className="flex">
@@ -95,7 +95,7 @@ export default function Page() {
             <div className="flex mt-10">
                 <div className="w-[16%]"></div>
                 <h1 className="text-5xl font-bold select-none">ARMBANDSNUMMER:</h1>
-                <input type="number" className="text-4xl w-[calc(58vw-432px-16%)]" min={0} onChange={(e) => {
+                <input type="number" className="text-4xl w-[calc(58rem-432px-16%)]" min={0} onChange={(e) => {
                     setWristbandNumber(parseInt(e.target.value));
                     setError('');
                 }} />

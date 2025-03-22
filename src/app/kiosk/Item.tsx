@@ -7,9 +7,9 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 export default function Item({ data, onClick }: { data: Models.Document, onClick: () => void }) {
     return (
         <div key={data.$id}>
-            <div className="w-[11vw] h-[30vh]">
-                <button className="relative w-full h-[11vw] flex justify-center items-center bg-kiosk_item_background rounded-3xl shadow-xl select-none">
-                    <img src={data.thumbnail_url} alt={data.name} className="object-scale-down w-[9vw] h-[9vw]" />
+            <div className="w-[13rem] h-[18rem]">
+                <button className="relative w-full h-[13rem] flex justify-center items-center bg-kiosk_item_background rounded-3xl shadow-xl select-none">
+                    <img src={data.thumbnail_url} alt={data.name} className="object-scale-down w-[11rem] h-[11rem]" />
                     <p className="absolute font-bold text-lg bottom-0 bg-[#151515] text-center w-full py-0.5 rounded-3xl">
                         {data.price} kr
                     </p>

@@ -23,3 +23,5 @@ export interface CartData {
     seat?: string;
     items: CheckoutItem[];
 }
+
+export type PaymentMethodEnum = 'swish' | 'cash' | 'voucher';
