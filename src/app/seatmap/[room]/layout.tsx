@@ -4,7 +4,7 @@ export default function RoomLayout({
     children: React.ReactNode;
   }>) {
     return (
-        <div className="flex items-center justify-center h-[calc(100%-5rem)] w-full">
+        <div className="flex items-center justify-center h-[calc(100%-5rem)] w-full" id="seatmap_area">
             { children }
         </div>
     )
