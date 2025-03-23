@@ -12,7 +12,8 @@ export default {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
-        kiosk_item_background: "#262626"
+        kiosk_item_background: "#262626",
+        seatmap_green: "#43FFC9",
       },
     },
   },

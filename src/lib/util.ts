@@ -12,3 +12,11 @@ export function getAgeFromSSN(ssn: string): number {
 
     return age;
 }
+
+/**
+ * BACKEND ONLY
+ * @param ssn 
+ */
+export function createSeatMapKey(ssn: string) {
+    return Bun.hash(ssn).toString();
+}

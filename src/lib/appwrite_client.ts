@@ -1,17 +1,17 @@
-import { Client, Account, ID, Databases, Query } from "appwrite";
-import { CheckoutItem, PaymentMethodEnum, response } from "./types";
+import { Client, Account, ID, Query, Databases } from "appwrite";
+import { CheckoutItem, PaymentMethodEnum } from "./types";
+import { Appwrite_Common } from "./appwrite_common";
 
-const DATABASE_ID = process.env.NEXT_PUBLIC_APPWRITE_DATABASE_ID || '';
+const COMMONLIB = new Appwrite_Common(getAppwriteClient, Databases)
+
 const COLLECTION_PARTICIPANTS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_PARTICIPANTS_ID || '';
 const COLLECTION_WRISTBANDS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_WRISTBANDS_ID || '';
 const COLLECTION_KIOSK_ITEMS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_KIOSK_ITEMS_ID || '';
 const COLLECTION_KIOSK_PURCHASES_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_KIOSK_PURCHASES_ID || '';
 const COLLECTION_KIOSK_VOUCHERS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_KIOSK_VOUCHERS_ID || '';
+const COLLECTION_SEATINGS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_SEATINGS_ID || '';
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
 
-if (!DATABASE_ID) {
-    throw new Error('Missing required environment variable NEXT_PUBLIC_APPWRITE_DATABASE_ID');
-}
 if (!PROJECT_ID) {
     throw new Error('Missing required environment variable NEXT_PUBLIC_APPWRITE_PROJECT_ID');
 }
@@ -30,15 +30,18 @@ if (!COLLECTION_KIOSK_PURCHASES_ID) {
 if (!COLLECTION_KIOSK_VOUCHERS_ID) {
     throw new Error('Missing required environment variable NEXT_PUBLIC_APPWRITE_COLLECTION_KIOSK_VOUCHERS_ID');
 }
+if (!COLLECTION_SEATINGS_ID) {
+    throw new Error('Missing required environment variable NEXT_PUBLIC_APPWRITE_COLLECTION_SEATINGS_ID');
+}
 
-export const getAppwriteClient = () => {
+export function getAppwriteClient() {
     const client = new Client()
         .setProject(PROJECT_ID);
 
     return client;
 }
 
-export const getLoggedInAccount = async (): Promise<response> => {
+export const getLoggedInAccount = async () => {
     try {
         const client = getAppwriteClient();
         const account = new Account(client);
@@ -70,7 +73,7 @@ export const getLoggedInAccount = async (): Promise<response> => {
     }
 }
 
-export const getJWT = async (): Promise<response> => {
+export const getJWT = async () => {
     try {
         const client = getAppwriteClient();
         const account = new Account(client);
@@ -102,7 +105,7 @@ export const getJWT = async (): Promise<response> => {
     }
 }
 
-export const createAccount = async (email: string, password: string): Promise<response> => {
+export const createAccount = async (email: string, password: string) => {
     try {
         const client = getAppwriteClient();
         const account = new Account(client);
@@ -138,7 +141,7 @@ export const createAccount = async (email: string, password: string): Promise<re
     }
 }
 
-export const loginAccount = async (email: string, password: string): Promise<response> => {
+export const loginAccount = async (email: string, password: string) => {
     try {
         const client = getAppwriteClient();
         const account = new Account(client);
@@ -173,13 +176,13 @@ export const loginAccount = async (email: string, password: string): Promise<res
     }
 }
 
-export const logoutAccount = async (): Promise<response> => {
+export const logoutAccount = async () => {
     try {
         const client = getAppwriteClient();
         const account = new Account(client);
 
         const result = await account.deleteSession(
-            'current' // sessionId
+            'current'
         );
 
         return {
@@ -207,74 +210,7 @@ export const logoutAccount = async (): Promise<response> => {
     }
 }
 
-export const insertDocument = async (databaseID: string, collectionID: string, data: Record<string, any>): Promise<response> => {
-    try {
-        const client = getAppwriteClient();
-        const databases = new Databases(client);
-
-        const result = await databases.createDocument(databaseID, collectionID, ID.unique(), data);
-
-        return {
-            status: 200,
-            message: "Inserted successfully",
-            data: result,
-            error: null
-        };
-    } catch (error: any) {
-        if (error.name && error.name === 'AppwriteException') {
-            return {
-                status: error.code,
-                message: error.response.message,
-                data: null,
-                error
-            }
-        }
-
-        return {
-            status: 500,
-            message: "Document not inserted",
-            data: null,
-            error
-        };
-    }
-}
-
-export const createDocument = async (databaseID: string, collectionID: string, data: Record<string, any>, id: string): Promise<response> => {
-    try {
-        const client = getAppwriteClient();
-        const databases = new Databases(client);
-
-        const result = await databases.createDocument(databaseID, collectionID, id, data);
-        return {
-            status: 200,
-            message: "Created successfully",
-            data: result,
-            error: null
-        };
-    } catch (error: any) {
-        if (error.name && error.name === 'AppwriteException') {
-            return {
-                status: error.code,
-                message: error.response.message,
-                data: null,
-                error
-            }
-        }
-
-        return {
-            status: 500,
-            message: "Document not created",
-            data: null,
-            error
-        };
-    }
-}
-
 export async function getParticipant(ssn: string, include?: string[]) {
-    try {
-        const client = getAppwriteClient();
-        const databases = new Databases(client);
-
         const queries = [
             Query.equal('ssn', ssn)
         ];
@@ -283,42 +219,10 @@ export async function getParticipant(ssn: string, include?: string[]) {
             queries.push(Query.select(include));
         }
 
-        const result = await databases.listDocuments(
-            DATABASE_ID,
-            COLLECTION_PARTICIPANTS_ID,
-            queries
-        );
-
-        return {
-            status: 200,
-            message: "Gotten successfully",
-            data: result?.documents[0],
-            error: null
-        };
-    } catch (error: any) {
-        if (error.name && error.name === 'AppwriteException') {
-            return {
-                status: error.code,
-                message: error.response.message,
-                data: null,
-                error
-            }
-        }
-
-        return {
-            status: 500,
-            message: "Document not retrieved",
-            data: null,
-            error
-        };
-    }
+        return COMMONLIB.listOneDocument(COLLECTION_PARTICIPANTS_ID, queries);
 }
 
 export async function getWristband(number: number, include?: string[]) {
-    try {
-        const client = getAppwriteClient();
-        const databases = new Databases(client);
-
         const queries = [
             Query.equal('number', number)
         ];
@@ -327,124 +231,27 @@ export async function getWristband(number: number, include?: string[]) {
             queries.push(Query.select(include));
         }
 
-        const result = await databases.listDocuments(
-            DATABASE_ID,
-            COLLECTION_WRISTBANDS_ID,
-            queries
-        );
-
-        return {
-            status: 200,
-            message: "Retrieved successfully",
-            data: result?.documents[0],
-            error: null
-        };
-    } catch (error: any) {
-        if (error.name && error.name === 'AppwriteException') {
-            return {
-                status: error.code,
-                message: error.response.message,
-                data: null,
-                error
-            }
-        }
-
-        return {
-            status: 500,
-            message: "Document not retrieved",
-            data: null,
-            error
-        };
-    }
+        return COMMONLIB.listOneDocument(COLLECTION_WRISTBANDS_ID, queries);
 }
 
 export async function getKioskItems(include?: string[]) {
-    try {
-        const client = getAppwriteClient();
-        const databases = new Databases(client);
-
         const queries = [];
 
         if (include) {
             queries.push(Query.select(include));
         }
 
-        const result = await databases.listDocuments(
-            DATABASE_ID,
-            COLLECTION_KIOSK_ITEMS_ID,
-            queries
-        );
-
-        return {
-            status: 200,
-            message: "Retrieved successfully",
-            data: result.documents,
-            error: null
-        };
-    } catch (error: any) {
-        if (error.name && error.name === 'AppwriteException') {
-            return {
-                status: error.code,
-                message: error.response.message,
-                data: null,
-                error
-            }
-        }
-
-        return {
-            status: 500,
-            message: "Document not retrieved",
-            data: null,
-            error
-        };
-    }
+        return COMMONLIB.listDocuments(COLLECTION_KIOSK_ITEMS_ID, queries);
 }
 
 export async function checkInParticipant(participant: string, wristbandID: number) {
-    try {
-        const client = getAppwriteClient();
-        const databases = new Databases(client);
-
-        const result = await databases.createDocument(
-            DATABASE_ID,
-            COLLECTION_WRISTBANDS_ID,
-            ID.unique(),
-            {
-                number: wristbandID,
-                participant
-            }
-        );
-
-        return {
-            status: 200,
-            message: "Created successfully",
-            data: result,
-            error: null
-        };
-    } catch (error: any) {
-        if (error.name && error.name === 'AppwriteException') {
-            return {
-                status: error.code,
-                message: error.response.message,
-                data: null,
-                error
-            }
-        }
-
-        return {
-            status: 500,
-            message: "Wristband check-in failed",
-            data: null,
-            error
-        };
-    }
+        return COMMONLIB.insertDocument(COLLECTION_WRISTBANDS_ID, {
+            number: wristbandID,
+            participant
+        });
 }
 
 export async function getKioskPurchase(purchaseID: string, include?: string[]) {
-    try {
-        const client = getAppwriteClient();
-        const databases = new Databases(client);
-
         const queries = [
             Query.equal('$id', purchaseID)
         ];
@@ -453,81 +260,33 @@ export async function getKioskPurchase(purchaseID: string, include?: string[]) {
             queries.push(Query.select(include));
         }
 
-        const result = await databases.listDocuments(
-            DATABASE_ID,
-            COLLECTION_KIOSK_PURCHASES_ID,
-            queries
-        );
-
-        return {
-            status: 200,
-            message: "Retrieved successfully",
-            data: result?.documents[0],
-            error: null
-        };
-    } catch (error: any) {
-        if (error.name && error.name === 'AppwriteException') {
-            return {
-                status: error.code,
-                message: error.response.message,
-                data: null,
-                error
-            }
-        }
-
-        return {
-            status: 500,
-            message: "Document not retrieved",
-            data: null,
-            error
-        };
-    }
+        return COMMONLIB.listOneDocument(purchaseID, queries);
 }
 
 export async function placeKioskPurchase(kioskItems: CheckoutItem[], wristbandID: string, payment_method: PaymentMethodEnum, voucherID?: string) {
-    try {
-        const client = getAppwriteClient();
-        const databases = new Databases(client);
-
         const kioskItemIDs = kioskItems.map(kioskItem => kioskItem.$id);
         const totalPrice = kioskItems.reduce((acc, curr) => acc + (curr.price * curr.amount), 0);
 
-        const result = await databases.createDocument(
-            DATABASE_ID,
-            COLLECTION_KIOSK_PURCHASES_ID,
-            ID.unique(),
-            {
-                timestamp: Date.now().toString(),
-                wristband: wristbandID,
-                kioskItems: kioskItemIDs,
-                items_json: JSON.stringify(kioskItems),
-                total: totalPrice,
-                payment_method,
-                voucher_id: voucherID
-            }
-        );
-
-        return {
-            status: 200,
-            message: "Created successfully",
-            data: result,
-            error: null
-        };
-    } catch (error: any) {
-        if (error.name && error.name === 'AppwriteException') {
-            return {
-                status: error.code,
-                message: error.response.message,
-                data: null,
-                error
-            }
-        }
-
-        return {
-            status: 500,
-            message: "Wristband check-in failed",
-            data: null,
-            error
-        };
-    }
+        return COMMONLIB.insertDocument(COLLECTION_KIOSK_ITEMS_ID, {
+            timestamp: Date.now().toString(),
+            wristband: wristbandID,
+            kioskItems: kioskItemIDs,
+            items_json: JSON.stringify(kioskItems),
+            total: totalPrice,
+            payment_method,
+            voucher_id: voucherID
+        })
 }
+
+export async function getAllSeats(include?: string[]) {
+    const queries = [
+        Query.limit(9999)
+    ];
+
+    if (include) {
+        queries.push(Query.select(include));
+    }
+
+    return COMMONLIB.listDocuments(COLLECTION_SEATINGS_ID, queries);
+}
+
