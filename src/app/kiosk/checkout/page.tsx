@@ -160,6 +160,7 @@ export default function Page() {
                     const wristbandReq = await getWristband(cart.wristband_number, ['$id'])
 
                     if (wristbandReq.data === null) {
+                        console.log(1)
                         alert("Add error handling here");
                         return;
                     }
@@ -169,6 +170,7 @@ export default function Page() {
                     const purchaseReq = await placeKioskPurchase(cart.items, wristbandID, selectedPayment);
 
                     if (purchaseReq.data === null) {
+                        console.log(2)
                         alert("Add error handling here");
                         return;
                     }
