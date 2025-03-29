@@ -105,4 +105,36 @@ export class Appwrite_Common {
             };
         }
     }
+
+    async updateDocument(collectionId: string, documentId: string, data: Record<string, any>) {
+        try {
+            //@ts-expect-error
+            const databases = new this.Databases(this.getClient());
+    
+            const result = await databases.updateDocument(DATABASE_ID, collectionId, documentId, data);
+    
+            return {
+                status: 200,
+                message: "Updated successfully",
+                data: result,
+                error: null
+            };
+        } catch (error: any) {
+            if (error.name && error.name === 'AppwriteException') {
+                return {
+                    status: error.code,
+                    message: error.response.message,
+                    data: null,
+                    error
+                }
+            }
+    
+            return {
+                status: 500,
+                message: "Document not updated",
+                data: null,
+                error
+            };
+        }
+    }
 }
