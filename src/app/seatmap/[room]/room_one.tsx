@@ -23,22 +23,28 @@ export default function RoomOne() {
 
     const [claimButtonContent, setClaimButtonContent] = useState<any>("Claim");
 
+    async function loadSeats() {
+        const seatAvailabilityReq = await getSeatAvailability(accessKey ?? undefined);
+
+        if (seatAvailabilityReq.data === null) {
+            setSeatTakenByUserRoom(null);
+            setSeatTakenByUser(null);
+            setSeatsAvailable(null);
+
+            console.log(seatAvailabilityReq);
+            alert("Handle error here.");
+            return;
+        }
+
+        setSeatTakenByUserRoom(seatAvailabilityReq.data.find((seat) => seat.thisUser)?.room ?? null);
+
+        setSeatTakenByUser(seatAvailabilityReq.data.find((seat) => seat.thisUser)?.number ?? null);
+
+        setSeatsAvailable(seatAvailabilityReq.data.filter((seat => seat.room === ROOM_NAME && !seat.taken)).map((seat) => seat.number));
+    }
+
     useEffect(() => {
-        (async () => {
-            const seatAvailabilityReq = await getSeatAvailability(accessKey ?? undefined);
-
-            if (seatAvailabilityReq.data === null) {
-                console.log(seatAvailabilityReq);
-                alert("Handle error here.");
-                return;
-            }
-
-            setSeatTakenByUserRoom(seatAvailabilityReq.data.find((seat) => seat.thisUser)?.room ?? null);
-
-            setSeatTakenByUser(seatAvailabilityReq.data.find((seat) => seat.thisUser)?.number ?? null);
-
-            setSeatsAvailable(seatAvailabilityReq.data.filter((seat => seat.room === ROOM_NAME && !seat.taken)).map((seat) => seat.number));
-        })()
+        loadSeats();
 
         document.getElementById("seatmap_area")?.addEventListener("click", () => {
             setLastClickedOutside(Date.now());
@@ -118,11 +124,13 @@ export default function RoomOne() {
 
                                     console.log(await claimSeat(accessKey, selected));
 
+                                    await loadSeats();
+
                                     setClaimButtonContent("Claim");
                                 } else {
                                     return alert("Handle error here with claim");
                                 }
-                            }}>{ claimButtonContent }</button>
+                            }}>{claimButtonContent}</button>
                         </div>
                     </>
                 ) : ""}

@@ -53,11 +53,13 @@ export async function claimSeat(seatmapAccessKey: string, selectedSeat: string) 
     const participantReq = await getParticipantFromSeatmapAccessKey(seatmapAccessKey);
 
     if (participantReq.data === null) {
+        console.log(1)
         return participantReq;
     }
 
     if (participantReq.data.seating) {
-        const unclaimReq = await unclaimSeatForParticipant(participantReq.data.seating.$id);
+        console.log(participantReq.data.seating)
+        const unclaimReq = await unclaimSeatForParticipant(participantReq.data.seating.$id, participantReq.data.seating.room.$id);
 
         if (unclaimReq.data === null) {
             return unclaimReq;

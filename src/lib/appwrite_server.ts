@@ -72,10 +72,10 @@ export async function claimSeatForParticipant(seatNumber: string, participantId:
     });
 }
 
-export async function unclaimSeatForParticipant(seatNumberOrId: string) {
+export async function unclaimSeatForParticipant(seatNumberOrId: string/*, roomId?: string*/) {
     let seatId = seatNumberOrId;
 
-    if (!seatNumberOrId.startsWith("$")) {
+    if (seatNumberOrId.length < 10) {
         const seatReq = await COMMONLIB.listOneDocument(COLLECTION_SEATINGS_ID, [
             Query.equal('name', seatNumberOrId)
         ]);
@@ -90,6 +90,28 @@ export async function unclaimSeatForParticipant(seatNumberOrId: string) {
     return await COMMONLIB.updateDocument(COLLECTION_SEATINGS_ID, seatId, {
         participant: null
     });
+    // let seatNumber = seatNumberOrId;
+    // let seatId = seatNumber;
+    // let room = roomId;
+
+    // if (seatNumber.length > 10 || !room) {
+    //     const seatReq = await COMMONLIB.getDocument(COLLECTION_SEATINGS_ID, seatNumber);
+    
+    //     if (!seatReq.data) {
+    //         return seatReq;
+    //     }
+            
+    //     seatNumber = seatReq.data.name;
+    //     seatId = seatReq.data.$id;
+    //     room = seatReq.data.room.$id;
+    // }
+
+    // console.log(await COMMONLIB.deleteDocument(COLLECTION_SEATINGS_ID, seatNumber));
+    // return await COMMONLIB.insertDocument(COLLECTION_SEATINGS_ID, {
+    //     name: seatNumber,
+    //     participant: null,
+    //     room
+    // })
 }
 
 export async function getParticipantFromSeatmapAccessKey(accessKey: string) {

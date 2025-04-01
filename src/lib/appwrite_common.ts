@@ -38,6 +38,78 @@ export class Appwrite_Common {
         return responseCopy;
     }
 
+    async deleteDocument(collectionId: string, documentId: string) {
+        try {
+            //@ts-expect-error
+            const databases = new this.Databases(this.getClient());
+    
+            const result = await databases.deleteDocument(
+                DATABASE_ID,
+                collectionId,
+                documentId
+            );
+    
+            return {
+                status: 200,
+                message: "Retrieved successfully",
+                data: result,
+                error: null
+            };
+        } catch (error: any) {
+            if (error.name && error.name === 'AppwriteException') {
+                return {
+                    status: error.code,
+                    message: error.response.message,
+                    data: null,
+                    error
+                }
+            }
+    
+            return {
+                status: 500,
+                message: "Document not retrieved",
+                data: null,
+                error
+            };
+        }
+    }
+
+    async getDocument(collectionId: string, documentId: string) {
+        try {
+            //@ts-expect-error
+            const databases = new this.Databases(this.getClient());
+    
+            const result = await databases.getDocument(
+                DATABASE_ID,
+                collectionId,
+                documentId
+            );
+    
+            return {
+                status: 200,
+                message: "Retrieved successfully",
+                data: result,
+                error: null
+            };
+        } catch (error: any) {
+            if (error.name && error.name === 'AppwriteException') {
+                return {
+                    status: error.code,
+                    message: error.response.message,
+                    data: null,
+                    error
+                }
+            }
+    
+            return {
+                status: 500,
+                message: "Document not retrieved",
+                data: null,
+                error
+            };
+        }
+    }
+
     async listDocuments(collectionID: string, queries: string[]) {
         try {
             //@ts-expect-error
