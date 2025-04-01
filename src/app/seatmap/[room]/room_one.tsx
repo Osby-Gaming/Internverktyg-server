@@ -23,6 +23,8 @@ export default function RoomOne() {
 
     const [claimButtonContent, setClaimButtonContent] = useState<any>("Claim");
 
+    const disableMapInteraction = claimButtonContent !== "Claim";
+
     async function loadSeats() {
         const seatAvailabilityReq = await getSeatAvailability(accessKey ?? undefined);
 
@@ -56,6 +58,8 @@ export default function RoomOne() {
     }, [])
 
     function handleSelect(number: string) {
+        if (disableMapInteraction) return;
+
         const copyOfLastSelected = lastSelected;
         setLastSelected(number);
 
@@ -113,16 +117,16 @@ export default function RoomOne() {
                 {selected ? (
                     <>
                         <p className="w-[80%] text-3xl h-fit select-none">
-                            {seatsAvailable.includes(selected) ? "Platsen är ledig!" : "Platsen är redan upptagen!"}
+                            {seatsAvailable.includes(selected) ? "Platsen är ledig!" : (seatTakenByUser === selected ? "Du har redan tagit platsen!" : "Platsen är redan upptagen!")}
                         </p>
                         <div className="w-[20%] p-2">
-                            <button onClick={async () => {
+                            <button disabled={!seatsAvailable.includes(selected)} onClick={async () => {
                                 setLastClickedClaimButton(Date.now());
 
                                 if (accessKey) {
                                     setClaimButtonContent(<Loading></Loading>);
 
-                                    console.log(await claimSeat(accessKey, selected));
+                                    console.log(await claimSeat(accessKey, selected, ROOM_NAME));
 
                                     await loadSeats();
 

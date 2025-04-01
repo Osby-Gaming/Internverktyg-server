@@ -56,8 +56,8 @@ export async function getAllSeats(include?: string[], limit?: number) {
     return COMMONLIB.listDocuments(COLLECTION_SEATINGS_ID, queries);
 }
 
-export async function claimSeatForParticipant(seatNumber: string, participantId: string) {
-    const seatReq = await COMMONLIB.listOneDocument(COLLECTION_SEATINGS_ID, [
+export async function claimSeatForParticipant(seatNumber: string, roomName: string, participantId: string) {
+    const seatReq = await COMMONLIB.listDocuments(COLLECTION_SEATINGS_ID, [
         Query.equal('name', seatNumber)
     ]);
 
@@ -65,14 +65,28 @@ export async function claimSeatForParticipant(seatNumber: string, participantId:
         return seatReq;
     }
 
-    const seatId = seatReq.data.$id;
+    let seatId;
 
-    return await COMMONLIB.updateDocument(COLLECTION_SEATINGS_ID, seatId, {
+    for (let i = 0; i < seatReq.data.length; i++) {
+        if (seatReq.data[i].room.name === roomName) {
+            seatId = seatReq.data[i].$id;
+            break;
+        }
+    }
+
+    if (seatId) return await COMMONLIB.updateDocument(COLLECTION_SEATINGS_ID, seatId, {
         participant: participantId
     });
+
+    return {
+        status: 500,
+        message: 'Seat not found',
+        data: null,
+        error: "Seat not found"
+    }
 }
 
-export async function unclaimSeatForParticipant(seatNumberOrId: string/*, roomId?: string*/) {
+export async function unclaimSeatForParticipant(seatNumberOrId: string, participantId: string/*, roomId?: string*/) {
     let seatId = seatNumberOrId;
 
     if (seatNumberOrId.length < 10) {
@@ -80,7 +94,7 @@ export async function unclaimSeatForParticipant(seatNumberOrId: string/*, roomId
             Query.equal('name', seatNumberOrId)
         ]);
     
-        if (!seatReq.data) {
+        if (seatReq.data === null) {
             return seatReq;
         }
     

@@ -49,22 +49,20 @@ export async function getSeatAvailability(seatmapAccessKey?: string): Promise<{
     }
 }
 
-export async function claimSeat(seatmapAccessKey: string, selectedSeat: string) {
+export async function claimSeat(seatmapAccessKey: string, seatName: string, roomName: string) {
     const participantReq = await getParticipantFromSeatmapAccessKey(seatmapAccessKey);
 
     if (participantReq.data === null) {
-        console.log(1)
         return participantReq;
     }
 
-    if (participantReq.data.seating) {
-        console.log(participantReq.data.seating)
-        const unclaimReq = await unclaimSeatForParticipant(participantReq.data.seating.$id, participantReq.data.seating.room.$id);
+    if (participantReq.data.seating && !(participantReq.data.seating.name === seatName && participantReq.data.seating.room.name === roomName)) {
+        const unclaimReq = await unclaimSeatForParticipant(participantReq.data.seating.$id, participantReq.data.$id/*, participantReq.data.seating.room.$id*/);
 
         if (unclaimReq.data === null) {
             return unclaimReq;
         }
     }
 
-    return await claimSeatForParticipant(selectedSeat, participantReq.data.$id);
+    return await claimSeatForParticipant(seatName, roomName, participantReq.data.$id);
 }
