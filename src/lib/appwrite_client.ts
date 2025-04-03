@@ -211,71 +211,102 @@ export const logoutAccount = async () => {
 }
 
 export async function getParticipant(ssn: string, include?: string[]) {
-        const queries = [
-            Query.equal('ssn', ssn)
-        ];
+    const queries = [
+        Query.equal('ssn', ssn)
+    ];
 
-        if (include) {
-            queries.push(Query.select(include));
-        }
+    if (include) {
+        queries.push(Query.select(include));
+    }
 
-        return COMMONLIB.listOneDocument(COLLECTION_PARTICIPANTS_ID, queries);
+    return COMMONLIB.listOneDocument(COLLECTION_PARTICIPANTS_ID, queries);
 }
 
 export async function getWristband(number: number, include?: string[]) {
-        const queries = [
-            Query.equal('number', number)
-        ];
+    const queries = [
+        Query.equal('number', number)
+    ];
 
-        if (include) {
-            queries.push(Query.select(include));
-        }
+    if (include) {
+        queries.push(Query.select(include));
+    }
 
-        return COMMONLIB.listOneDocument(COLLECTION_WRISTBANDS_ID, queries);
+    return COMMONLIB.listOneDocument(COLLECTION_WRISTBANDS_ID, queries);
 }
 
 export async function getKioskItems(include?: string[]) {
-        const queries = [];
+    const queries = [];
 
-        if (include) {
-            queries.push(Query.select(include));
-        }
+    if (include) {
+        queries.push(Query.select(include));
+    }
 
-        return COMMONLIB.listDocuments(COLLECTION_KIOSK_ITEMS_ID, queries);
+    return COMMONLIB.listDocuments(COLLECTION_KIOSK_ITEMS_ID, queries);
 }
 
 export async function checkInParticipant(participant: string, wristbandID: number) {
-        return COMMONLIB.insertDocument(COLLECTION_WRISTBANDS_ID, {
-            number: wristbandID,
-            participant
-        });
+    return COMMONLIB.insertDocument(COLLECTION_WRISTBANDS_ID, {
+        number: wristbandID,
+        participant
+    });
+}
+export async function createParticipant(ssn: string, name: string, email: string, allergies: string, phone_number: string, seatmap_access_key: string) {
+    // Add seatmap access key check for duplicates, otherwise bad error can happen, though super rare
+    return COMMONLIB.insertDocument(COLLECTION_PARTICIPANTS_ID, {
+        ssn,
+        name,
+        email,
+        allergies,
+        phone_number,
+        seatmap_access_key
+    });
+}
+
+export async function createVoucher(item: string, wristband: string) {
+    return COMMONLIB.insertDocument(COLLECTION_KIOSK_VOUCHERS_ID, {
+        kioskItem: item,
+        wristband
+    });
+}
+
+export async function generateVouchersForParticipant(wristband: string) {
+    return Promise.all([createVoucher("67eed2990025d9048308", wristband),
+    createVoucher("67eed2df0033e3ccf90a", wristband),
+    createVoucher("67eed3190022da7e762a", wristband),
+    createVoucher("67eed37400172d642942", wristband)]);
 }
 
 export async function getKioskPurchase(purchaseID: string, include?: string[]) {
-        const queries = [
-            Query.equal('$id', purchaseID)
-        ];
+    const queries = [
+        Query.equal('$id', purchaseID)
+    ];
 
-        if (include) {
-            queries.push(Query.select(include));
-        }
+    if (include) {
+        queries.push(Query.select(include));
+    }
 
-        return COMMONLIB.listOneDocument(purchaseID, queries);
+    return COMMONLIB.listOneDocument(purchaseID, queries);
 }
 
-export async function placeKioskPurchase(kioskItems: CheckoutItem[], wristbandID: string, payment_method: PaymentMethodEnum, voucherID?: string) {
-        const kioskItemIDs = kioskItems.map(kioskItem => kioskItem.$id);
-        const totalPrice = kioskItems.reduce((acc, curr) => acc + (curr.price * curr.amount), 0);
+export async function placeKioskPurchase(kioskItems: CheckoutItem[], wristbandID: string, payment_method: PaymentMethodEnum, useVouchers: boolean) {
+    const kioskItemIDs = kioskItems.map(kioskItem => kioskItem.$id);
+    const totalPrice = kioskItems.reduce((acc, curr) => acc + (curr.price * curr.amount), 0);
 
-        return COMMONLIB.insertDocument(COLLECTION_KIOSK_ITEMS_ID, {
-            timestamp: Date.now().toString(),
-            wristband: wristbandID,
-            kioskItems: kioskItemIDs,
-            items_json: JSON.stringify(kioskItems),
-            total: totalPrice,
-            payment_method,
-            voucher_id: voucherID
-        })
+    const kioskVouchers: string[] = [];
+
+    for (let item in kioskItems) {
+        // @todo REDUCE STOCK FOR ALL ITEMS
+    }
+
+    return COMMONLIB.insertDocument(COLLECTION_KIOSK_PURCHASES_ID, {
+        timestamp: Date.now().toString(),
+        wristband: wristbandID,
+        kioskItems: kioskItemIDs,
+        items_json: JSON.stringify(kioskItems),
+        total: totalPrice,
+        payment_method,
+        kioskVouchers
+    })
 }
 
 export async function getAllSeats(include?: string[]) {

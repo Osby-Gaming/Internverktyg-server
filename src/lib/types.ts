@@ -24,4 +24,4 @@ export interface CartData {
     items: CheckoutItem[];
 }
 
-export type PaymentMethodEnum = 'swish' | 'cash' | 'voucher';
+export type PaymentMethodEnum = 'swish' | 'cash';

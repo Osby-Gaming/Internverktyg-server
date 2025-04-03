@@ -11,6 +11,7 @@ export default function Page() {
     const [selectedPayment, setSelectedPayment] = useState<PaymentMethodEnum>('swish');
     const [sellAnywaysChecked, setSellAnywaysChecked] = useState(false);
     const [age, setAge] = useState(15);
+    const [useVouchers, setUseVouchers] = useState(false);
     const [cart, setCart] = useState<null | CartData>(null);
     const router = useRouter();
 
@@ -65,15 +66,10 @@ export default function Page() {
                             <p>Kontanter</p>
                         </label>
                     </div>
-                    <div className="radio">
-                        <label>
-                            <span className="checkmark"></span>
-                            <input type="radio" value="voucher"
-                                checked={selectedPayment === 'voucher'}
-                                onChange={() => setSelectedPayment('voucher')} />
-                            <p>Voucher</p>
-                        </label>
-                    </div>
+                    <label className="form-control flex w-[50%]">
+                        <p className="text-xl mr-4 select-none">Använd vouchers</p>
+                        <input type="checkbox" name="checkbox-checked" checked={useVouchers} onChange={(event) => setUseVouchers(event.target.checked)} />
+                    </label>
                     <div className="flex mt-10 mb-5 pl-8">
                         <h3 className="text-3xl font-thin thin-text whitespace-nowrap italic">
                             Personuppgifter:
@@ -127,7 +123,7 @@ export default function Page() {
                             </ul>
                             <div className="relative w-full h-full">
                                 <h5 className="bottom-0 absolute mb-5 font-bold text-2xl">SUMMA: </h5>
-                                <p className="bottom-0 right-0 absolute mb-5 font-bold text-2xl">{ cart?.items.reduce((acc, curr) => acc + (curr.price * curr.amount), 0) } kr</p>
+                                <p className="bottom-0 right-0 absolute mb-5 font-bold text-2xl">{cart?.items.reduce((acc, curr) => acc + (curr.price * curr.amount), 0)} kr</p>
                             </div>
                         </div>
                     </div>
@@ -167,7 +163,7 @@ export default function Page() {
 
                     const wristbandID = wristbandReq.data.$id;
 
-                    const purchaseReq = await placeKioskPurchase(cart.items, wristbandID, selectedPayment);
+                    const purchaseReq = await placeKioskPurchase(cart.items, wristbandID, selectedPayment, useVouchers);
 
                     if (purchaseReq.data === null) {
                         console.log(2)

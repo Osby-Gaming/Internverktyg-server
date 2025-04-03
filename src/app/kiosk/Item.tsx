@@ -6,7 +6,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 export default function Item({ data, onClick }: { data: Models.Document, onClick: () => void }) {
     return (
-        <div key={data.$id}>
+        <div>
             <div className="w-[13rem] h-[18rem]">
                 <button className="relative w-full h-[13rem] flex justify-center items-center bg-kiosk_item_background rounded-3xl shadow-xl select-none">
                     <img src={data.thumbnail_url} alt={data.name} className="object-scale-down w-[11rem] h-[11rem]" />

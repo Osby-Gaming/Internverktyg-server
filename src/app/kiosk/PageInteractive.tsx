@@ -80,15 +80,18 @@ export default function Page() {
                             )}
                         </ul>
                     </div>
-                    <div className="absolute z-20 h-full w-[25rem] right-0 p-4 px-10 bg-[#262626] rounded-3xl">
+                    <div className="absolute z-20 h-full w-[25rem] right-0 px-10 bg-[#262626] rounded-3xl">
                         <ul className="list-disc">
                             {Object.keys(checkoutItems).map((i) =>
-                                <li key={i} className="flex">
+                                <li key={i} className="flex py-4">
                                     <p className="w-[84%] text-ellipsis whitespace-nowrap overflow-hidden font-bold">{checkoutItems[i].amount}x {checkoutItems[i].name}</p>
                                     <p className="w-[16%] font-bold">{checkoutItems[i].price}kr</p>
                                 </li>
                             )}
                         </ul>
+                        <div className="absolute bottom-5 text-4xl select-none">
+                            Summa: { Object.values(checkoutItems).reduce((acc, item) => acc + item.price * item.amount, 0) } kr
+                        </div>
                     </div>
                 </div>
             </div>

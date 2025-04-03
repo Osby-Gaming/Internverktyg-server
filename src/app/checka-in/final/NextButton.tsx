@@ -1,6 +1,7 @@
 'use client'
 
-import { checkInParticipant, getParticipant } from "@/lib/appwrite_client";
+import { checkInParticipant, generateVouchersForParticipant, getParticipant } from "@/lib/appwrite_client";
+import Loading from "@/lib/components/loading";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useState } from "react";
 
@@ -9,6 +10,7 @@ export default function NextButton() {
     const router = useRouter();
 
     const [error, setError] = useState("");
+    const [buttonContent, setButtonContent] = useState<any>("Godkänn")
 
     const ssn = searchParams.get('ssn');
     const wId = searchParams.get('id');
@@ -26,19 +28,23 @@ export default function NextButton() {
     return (
         <div>
             <button className="text-3xl" onClick={async () => {
+                setButtonContent(Loading());
                 const result = await getParticipant(ssn);
 
                 if (result.status !== 200) {
+                    setButtonContent("Godkänn");
                     return setError(result.message);
                 }
 
                 const participant = result.data;
 
                 if (!participant) {
+                    setButtonContent("Godkänn");
                     return setError("Deltagaren hittades inte");
                 }
 
                 if (participant.wristband != null) {
+                    setButtonContent("Godkänn");
                     return setError("Deltagaren har redan blivit incheckad");
                 }
 
@@ -47,13 +53,18 @@ export default function NextButton() {
 
                 const checkinResult = await checkInParticipant(participant.$id, parseInt(wId));
 
-                if (checkinResult.status !== 200) {
+                if (checkinResult.data === null) {
+                    setButtonContent("Godkänn");
                     return setError(checkinResult.message);
                 }
 
+                await generateVouchersForParticipant(checkinResult.data.$id);
+
+                // Implement error handling here
+
                 router.push("/checka-in/confirmation");
             }}>
-                Godkänn
+                {buttonContent}
             </button>
             <div className="relative">
                 <p className="error absolute m-auto w-fit left-0 right-0">{error}</p>

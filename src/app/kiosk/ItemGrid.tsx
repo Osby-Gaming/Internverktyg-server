@@ -20,7 +20,7 @@ export default function ItemGrid({ handleAdd }: {handleAdd: (item: Models.Docume
         })()
     }, []);
 
-    const cols = Math.ceil(items.length*12 / 2);
+    const cols = Math.ceil(items.length / 2);
     
     /* Add tabindex functionality for better accessibility */
     return (
@@ -29,20 +29,7 @@ export default function ItemGrid({ handleAdd }: {handleAdd: (item: Models.Docume
             gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr)`
         }}>
             {items.map((item) => (
-                <>
-                <Item data={item} onClick={() => handleAdd(item)}/>
-                <Item data={item} onClick={() => handleAdd(item)}/>
-                <Item data={item} onClick={() => handleAdd(item)}/>
-                <Item data={item} onClick={() => handleAdd(item)}/>
-                <Item data={item} onClick={() => handleAdd(item)}/>
-                <Item data={item} onClick={() => handleAdd(item)}/>
-                <Item data={item} onClick={() => handleAdd(item)}/>
-                <Item data={item} onClick={() => handleAdd(item)}/>
-                <Item data={item} onClick={() => handleAdd(item)}/>
-                <Item data={item} onClick={() => handleAdd(item)}/>
-                <Item data={item} onClick={() => handleAdd(item)}/>
-                <Item data={item} onClick={() => handleAdd(item)}/>
-                </>
+                <Item key={item.$id} data={item} onClick={() => handleAdd(item)}/>
             ))}
         </div>
     )
