@@ -74,7 +74,7 @@ export class Appwrite_Common {
         }
     }
 
-    async getDocument(collectionId: string, documentId: string) {
+    async getDocument(collectionId: string, documentId: string, queries?: string[]) {
         try {
             //@ts-expect-error
             const databases = new this.Databases(this.getClient());
@@ -82,7 +82,8 @@ export class Appwrite_Common {
             const result = await databases.getDocument(
                 DATABASE_ID,
                 collectionId,
-                documentId
+                documentId,
+                queries
             );
     
             return {

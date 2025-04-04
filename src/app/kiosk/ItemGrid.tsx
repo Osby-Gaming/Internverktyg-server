@@ -12,7 +12,7 @@ export default function ItemGrid({ handleAdd }: {handleAdd: (item: Models.Docume
         (async () => {
             const response = await getKioskItems();
             if (response.status === 200) {
-                setItems(response.data ?? []);
+                setItems(response.data?.filter(item => item.stock > 0) ?? []);
             } else {
                 // TODO: handle error
                 console.error("Failed to fetch items", response);

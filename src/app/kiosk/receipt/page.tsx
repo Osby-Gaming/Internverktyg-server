@@ -14,8 +14,6 @@ export default function Page() {
 
     const id = searchParams.get('id');
 
-    console.log(id);
-
     if (!id) {
         router.push('/kiosk');
 
@@ -24,29 +22,39 @@ export default function Page() {
     useEffect(() => {
         (async () => {
             const purchaseReq = await getKioskPurchase(id);
-            console.log(purchaseReq);
+
             if (purchaseReq.data === null) {
                 router.push('/kiosk');
                 return;
+            }
+
+            const itemIdToSubtractionIndex: Record<string, number> = {};
+
+            for (let voucher of purchaseReq.data.kioskVouchers) {
+                if (!itemIdToSubtractionIndex[voucher.kioskItem.$id]) {
+                    itemIdToSubtractionIndex[voucher.kioskItem.$id] = voucher.kioskItem.price;
+                } else {
+                    itemIdToSubtractionIndex[voucher.kioskItem.$id] += voucher.kioskItem.price;
+                }
             }
 
             let markdown = "^^^Kvitto\n\n"
 
             const date = new Date(+purchaseReq.data.timestamp);
 
-            console.log(date);
-
             markdown += `${date.getFullYear().toString()}-${date.getMonth()}-${date.getDate()}, ${date.getHours()}:${date.getMinutes()}:${date.getMilliseconds()}\n`
 
             const items = JSON.parse(purchaseReq.data.items_json) as CheckoutItem[];
 
             for (let item of items) {
-                markdown += `${item.name} | ${item.amount}| ${(item.amount * item.price).toLocaleString()} kr`
+                markdown += `${item.name} | ${item.amount}| ${(item.amount * item.price).toLocaleString()} kr\n`
+
+                if (itemIdToSubtractionIndex[item.$id]) {
+                    markdown += `| Rabatt | -${itemIdToSubtractionIndex[item.$id].toLocaleString()} kr\n`
+                }
             }
 
-            markdown += `\n---\n^SUMMA | ^${purchaseReq.data.total.toLocaleString()} kr`
-
-            console.log(markdown);
+            markdown += `---\n^SUMMA | ^${purchaseReq.data.total.toLocaleString()} kr`
 
             const receipt = Receipt.from(markdown, '-c 42 -l en');
             //@ts-expect-error

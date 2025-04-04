@@ -1,7 +1,7 @@
 'use client';
 import { getWristband, placeKioskPurchase } from "@/lib/appwrite_client";
-import { CartData, PaymentMethodEnum } from "@/lib/types";
-import { getAgeFromSSN } from "@/lib/util";
+import { CartData, PaymentMethodEnum, VoucherInstructions } from "@/lib/types";
+import { generateVoucherInstructions, getAgeFromSSN } from "@/lib/util";
 import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { useRouter } from "next/navigation";
@@ -13,6 +13,11 @@ export default function Page() {
     const [age, setAge] = useState(15);
     const [useVouchers, setUseVouchers] = useState(false);
     const [cart, setCart] = useState<null | CartData>(null);
+    const [instructions, setInstructions] = useState<VoucherInstructions>({
+        use_vouchers: [],
+        subtract: 0
+    });
+
     const router = useRouter();
 
     useEffect(() => {
@@ -27,6 +32,8 @@ export default function Page() {
         setCart(cart);
 
         setAge(getAgeFromSSN(cart.ssn));
+
+        setInstructions(generateVoucherInstructions(cart.items, cart.vouchers));
     }, [])
 
     const is15 = age >= 15;
@@ -66,9 +73,10 @@ export default function Page() {
                             <p>Kontanter</p>
                         </label>
                     </div>
+                    <br />
                     <label className="form-control flex w-[50%]">
-                        <p className="text-xl mr-4 select-none">Använd vouchers</p>
                         <input type="checkbox" name="checkbox-checked" checked={useVouchers} onChange={(event) => setUseVouchers(event.target.checked)} />
+                        <p className="text-xl select-none ml-4">Använd vouchers</p>
                     </label>
                     <div className="flex mt-10 mb-5 pl-8">
                         <h3 className="text-3xl font-thin thin-text whitespace-nowrap italic">
@@ -112,18 +120,18 @@ export default function Page() {
                                 ))}
                             </ul>
                         </div>
-                        <div className="absolute z-20 h-full w-[25rem] right-0 p-4 px-10 bg-[#262626] min-height-[90vh] rounded-3xl">
+                        <div className="absolute z-20 h-full w-[25rem] right-0 px-10 bg-[#262626] min-height-[90vh] rounded-3xl">
                             <ul className="list-disc">
                                 {cart === null ? '' : cart.items.map(item => (
-                                    <li key={item.$id} className="flex">
+                                    <li key={item.$id} className="flex py-4">
                                         <p className="w-[84%] text-ellipsis whitespace-nowrap overflow-hidden font-bold">{item.amount}x {item.name}</p>
                                         <p className="w-[16%] font-bold">{item.price * item.amount} kr</p>
                                     </li>
                                 ))}
                             </ul>
-                            <div className="relative w-full h-full">
-                                <h5 className="bottom-0 absolute mb-5 font-bold text-2xl">SUMMA: </h5>
-                                <p className="bottom-0 right-0 absolute mb-5 font-bold text-2xl">{cart?.items.reduce((acc, curr) => acc + (curr.price * curr.amount), 0)} kr</p>
+                            <div>
+                                <h5 className="bottom-0 absolute mb-5 font-bold text-2xl left-5">SUMMA: </h5>
+                                <p className="bottom-0 right-5 absolute mb-5 font-bold text-2xl">{(cart?.items.reduce((acc, curr) => acc + (curr.price * curr.amount), 0) ?? 0) - (useVouchers ? instructions.subtract : 0)} kr</p>
                             </div>
                         </div>
                     </div>
@@ -163,7 +171,7 @@ export default function Page() {
 
                     const wristbandID = wristbandReq.data.$id;
 
-                    const purchaseReq = await placeKioskPurchase(cart.items, wristbandID, selectedPayment, useVouchers);
+                    const purchaseReq = await placeKioskPurchase(cart.items, wristbandID, selectedPayment, instructions);
 
                     if (purchaseReq.data === null) {
                         console.log(2)
@@ -171,7 +179,6 @@ export default function Page() {
                         return;
                     }
 
-                    console.log(purchaseReq.data);
                     localStorage.removeItem("cart");
 
                     router.push('/kiosk/receipt?id=' + purchaseReq.data.$id);

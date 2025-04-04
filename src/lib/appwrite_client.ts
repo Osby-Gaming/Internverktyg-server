@@ -1,5 +1,5 @@
-import { Client, Account, ID, Query, Databases } from "appwrite";
-import { CheckoutItem, PaymentMethodEnum } from "./types";
+import { Client, Account, ID, Query, Databases, Models } from "appwrite";
+import { CheckoutItem, PaymentMethodEnum, VoucherInstructions } from "./types";
 import { Appwrite_Common } from "./appwrite_common";
 
 const COMMONLIB = new Appwrite_Common(getAppwriteClient, Databases)
@@ -233,6 +233,15 @@ export async function getWristband(number: number, include?: string[]) {
 
     return COMMONLIB.listOneDocument(COLLECTION_WRISTBANDS_ID, queries);
 }
+export async function getSeat(id: string, include?: string[]) {
+    const queries = [];
+
+    if (include) {
+        queries.push(Query.select(include));
+    }
+
+    return COMMONLIB.getDocument(COLLECTION_SEATINGS_ID, id, queries);
+}
 
 export async function getKioskItems(include?: string[]) {
     const queries = [];
@@ -277,25 +286,26 @@ export async function generateVouchersForParticipant(wristband: string) {
 }
 
 export async function getKioskPurchase(purchaseID: string, include?: string[]) {
-    const queries = [
-        Query.equal('$id', purchaseID)
-    ];
+    const queries = [];
 
     if (include) {
         queries.push(Query.select(include));
     }
 
-    return COMMONLIB.listOneDocument(purchaseID, queries);
+    return COMMONLIB.getDocument(COLLECTION_KIOSK_PURCHASES_ID, purchaseID, queries);
 }
 
-export async function placeKioskPurchase(kioskItems: CheckoutItem[], wristbandID: string, payment_method: PaymentMethodEnum, useVouchers: boolean) {
+export async function placeKioskPurchase(kioskItems: CheckoutItem[], wristbandID: string, payment_method: PaymentMethodEnum, voucherInstructions: VoucherInstructions) {
     const kioskItemIDs = kioskItems.map(kioskItem => kioskItem.$id);
-    const totalPrice = kioskItems.reduce((acc, curr) => acc + (curr.price * curr.amount), 0);
+    const totalPrice = kioskItems.reduce((acc, curr) => acc + (curr.price * curr.amount), 0) - voucherInstructions.subtract;
 
-    const kioskVouchers: string[] = [];
+    const kioskVouchers = [...voucherInstructions.use_vouchers];
 
-    for (let item in kioskItems) {
-        // @todo REDUCE STOCK FOR ALL ITEMS
+    for (let item of kioskItems) {
+        // TODO: AVOID RACE CONDITIONS
+        COMMONLIB.updateDocument(COLLECTION_KIOSK_ITEMS_ID, item.$id, {
+            stock: item.stock - 1
+        });
     }
 
     return COMMONLIB.insertDocument(COLLECTION_KIOSK_PURCHASES_ID, {

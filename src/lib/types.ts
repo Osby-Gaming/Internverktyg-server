@@ -1,3 +1,5 @@
+import { Models } from "appwrite";
+
 export type response = {
     status: number;
     message: string;
@@ -22,6 +24,15 @@ export interface CartData {
     allergies: string;
     seat?: string;
     items: CheckoutItem[];
+    vouchers: Models.Document[];
+}
+
+export interface VoucherInstructions {
+    /**
+     * IDs of the vouchers
+     */
+    use_vouchers: string[],
+    subtract: number
 }
 
 export type PaymentMethodEnum = 'swish' | 'cash';

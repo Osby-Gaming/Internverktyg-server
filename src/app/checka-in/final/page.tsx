@@ -25,7 +25,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ [
             <h1 className="text-6xl text-center mb-10">Personuppgifter</h1>
             <div className="flex justify-center mb-20">
                 <div className="grid grid-cols-2 grid-rows-5 gap-y-5 gap-x-32 text-4xl">
-                    <ParticipantTable ssn={ssn} />
+                    <ParticipantTable ssn={ssn} wristbandNumber={id} />
                 </div>
             </div>
             <div className="flex justify-center">

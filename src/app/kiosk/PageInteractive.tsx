@@ -4,7 +4,7 @@ import { useState } from "react";
 import ItemGrid from "./ItemGrid";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faMinus, faPlus } from "@fortawesome/free-solid-svg-icons";
-import { getWristband } from "@/lib/appwrite_client";
+import { getSeat, getWristband } from "@/lib/appwrite_client";
 import { CartData, CheckoutItem } from "@/lib/types";
 import { useRouter } from "next/navigation";
 
@@ -131,13 +131,23 @@ export default function Page() {
 
                             const wristbandData = wristbandResult.data;
 
+                            const seatReq = await getSeat(wristbandData.participant.seating.$id);
+
+                            if (seatReq.data === null) {
+                                setError("Platsen för denna person hittades inte");
+
+                                return;
+                            }
+
                             const cartData: CartData = {
                                 name: wristbandData.participant.name,
                                 phone_number: wristbandData.participant.phone_number,
                                 ssn: wristbandData.participant.ssn,
                                 allergies: wristbandData.participant.allergies,
                                 wristband_number: wristbandNumber,
-                                items: Object.values(checkoutItems)
+                                items: Object.values(checkoutItems),
+                                seat: `${seatReq.data.room?.name}:${seatReq.data.name}`,
+                                vouchers: wristbandData.kioskVouchers
                             };
 
                             if (wristbandData.participant.seating && wristbandData.participant.seating.room) {
