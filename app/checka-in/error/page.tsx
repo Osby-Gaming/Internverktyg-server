@@ -1,5 +1,5 @@
 export default async function Page({ searchParams }: { searchParams: Promise<{ [key: string]: string | string[] | undefined }> }) {
-    let { err } = await searchParams;
+    const { err } = await searchParams;
 
     return (
         <div>

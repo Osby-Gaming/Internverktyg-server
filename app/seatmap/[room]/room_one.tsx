@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from "react";
+import { JSX, useCallback, useEffect, useState } from "react";
 import { claimSeat, getSeatAvailability } from "../actions";
 import Loading from "@/lib/components/loading";
 import { useSearchParams } from "next/navigation";
@@ -21,11 +21,11 @@ export default function RoomOne() {
     const [seatTakenByUser, setSeatTakenByUser] = useState<string | null>(null);
     const [seatTakenByUserRoom, setSeatTakenByUserRoom] = useState<string | null>(null);
 
-    const [claimButtonContent, setClaimButtonContent] = useState<any>("Claim");
+    const [claimButtonContent, setClaimButtonContent] = useState<string | JSX.Element>("Claim");
 
     const disableMapInteraction = claimButtonContent !== "Claim";
 
-    async function loadSeats() {
+    const loadSeats = useCallback(async () => {
         const seatAvailabilityReq = await getSeatAvailability(accessKey ?? undefined);
 
         if (seatAvailabilityReq.data === null) {
@@ -43,7 +43,7 @@ export default function RoomOne() {
         setSeatTakenByUser(seatAvailabilityReq.data.find((seat) => seat.thisUser)?.number ?? null);
 
         setSeatsAvailable(seatAvailabilityReq.data.filter((seat => seat.room === ROOM_NAME && !seat.taken)).map((seat) => seat.number));
-    }
+    }, [accessKey])
 
     useEffect(() => {
         loadSeats();
@@ -55,7 +55,7 @@ export default function RoomOne() {
                 setSelected(null);
             }
         }, true)
-    }, [])
+    }, [lastClickedClaimButton, lastClickedOutside, loadSeats])
 
     function handleSelect(number: string) {
         if (disableMapInteraction) return;

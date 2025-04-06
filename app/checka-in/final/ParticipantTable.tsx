@@ -14,7 +14,7 @@ export default function ParticipantTable({ ssn, wristbandNumber }: { ssn: string
             // @TODO Add error handling
             setParticipant(participant.data);
         })()
-    }, [])
+    }, [ssn])
 
     return (
         <>

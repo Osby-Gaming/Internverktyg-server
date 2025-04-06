@@ -11,7 +11,7 @@ export async function getSeatAvailability(seatmapAccessKey?: string): Promise<{
         taken: boolean;
         thisUser: boolean;
     }[] | null);
-    error: any;
+    error: string | Error | null | unknown;
 }> {
     try {
         const allSeatsReq = await getAllSeats();
@@ -57,7 +57,7 @@ export async function claimSeat(seatmapAccessKey: string, seatName: string, room
     }
 
     if (participantReq.data.seating && !(participantReq.data.seating.name === seatName && participantReq.data.seating.room.name === roomName)) {
-        const unclaimReq = await unclaimSeatForParticipant(participantReq.data.seating.$id, participantReq.data.$id/*, participantReq.data.seating.room.$id*/);
+        const unclaimReq = await unclaimSeatForParticipant(participantReq.data.seating.$id/*, participantReq.data.seating.room.$id*/);
 
         if (unclaimReq.data === null) {
             return unclaimReq;

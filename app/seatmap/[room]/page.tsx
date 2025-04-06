@@ -7,7 +7,7 @@ export default async function Page({
   }: {
     params: Promise<{ room: string }>
   }) {
-    let room = (await params)["room"];
+    const room = (await params)["room"];
 
     if (room === "0") {
         return (<RoomOne></RoomOne>);

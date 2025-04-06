@@ -3,14 +3,14 @@
 import { checkInParticipant, generateVouchersForParticipant, getParticipant } from "@/lib/appwrite_client";
 import Loading from "@/lib/components/loading";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useState } from "react";
+import { JSX, useState } from "react";
 
 export default function NextButton() {
     const searchParams = useSearchParams();
     const router = useRouter();
 
     const [error, setError] = useState("");
-    const [buttonContent, setButtonContent] = useState<any>("Godkänn")
+    const [buttonContent, setButtonContent] = useState<string | JSX.Element>("Godkänn")
 
     const ssn = searchParams.get('ssn');
     const wId = searchParams.get('id');

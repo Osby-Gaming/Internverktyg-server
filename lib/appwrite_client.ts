@@ -1,4 +1,4 @@
-import { Client, Account, ID, Query, Databases, Models } from "appwrite";
+import { Client, Account, ID, Query, Databases } from "appwrite";
 import { CheckoutItem, PaymentMethodEnum, VoucherInstructions } from "./types";
 import { Appwrite_Common } from "./appwrite_common";
 
@@ -301,7 +301,7 @@ export async function placeKioskPurchase(kioskItems: CheckoutItem[], wristbandID
 
     const kioskVouchers = [...voucherInstructions.use_vouchers];
 
-    for (let item of kioskItems) {
+    for (const item of kioskItems) {
         // TODO: AVOID RACE CONDITIONS
         COMMONLIB.updateDocument(COLLECTION_KIOSK_ITEMS_ID, item.$id, {
             stock: item.stock - 1

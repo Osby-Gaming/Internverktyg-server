@@ -15,13 +15,10 @@ export default function AuthRouter({
     const pathname = usePathname();
 
     // Not very complex as this system won't allow subpaths that aren't for guests
-    if (guestPaths.find(path => pathname.startsWith(path))) {
-      return children;
-    }
 
     useEffect(() => {
       (async () => {
-        if ((await getLoggedInAccount()).data === null) {
+        if ((await getLoggedInAccount()).data === null && !guestPaths.find(path => pathname.startsWith(path))) {
           router.push('/login');
         }
       })()

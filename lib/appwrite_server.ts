@@ -86,7 +86,7 @@ export async function claimSeatForParticipant(seatNumber: string, roomName: stri
     }
 }
 
-export async function unclaimSeatForParticipant(seatNumberOrId: string, participantId: string/*, roomId?: string*/) {
+export async function unclaimSeatForParticipant(seatNumberOrId: string/*, roomId?: string*/) {
     let seatId = seatNumberOrId;
 
     if (seatNumberOrId.length < 10) {

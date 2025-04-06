@@ -49,7 +49,7 @@ export function generateVoucherInstructions(itemsIn: CheckoutItem[], vouchers: M
         subtract: 0
     }
 
-    for (let voucher of vouchers) {
+    for (const voucher of vouchers) {
         let i;
 
         if (items.find((item, i2) => {

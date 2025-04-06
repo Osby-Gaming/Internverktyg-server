@@ -53,7 +53,7 @@ export default function Form() {
                 <input type="text" id="phone_number" name="phone_number" onChange={(e) => setPhoneNumber(e.target.value)} required />
                 <br />
                 <button type="submit" onClick={(e) => {
-                    //@ts-ignore
+                    //@ts-expect-error Event types mismatch slightly, with no real significance. Not intuitively fixable, so leave like this.
                     handleSubmit(e);
                 }}>Skicka</button>
             </form>

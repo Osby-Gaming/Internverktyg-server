@@ -11,8 +11,14 @@ import '@fortawesome/fontawesome-svg-core/styles.css'
 import AuthRouter from "@/lib/components/AuthRouter";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faHouse } from "@fortawesome/free-solid-svg-icons";
+import { Roboto_Mono } from 'next/font/google';
 import Link from "next/link";
 config.autoAddCss = false
+
+const MainFont = Roboto_Mono({
+  style: "normal",
+  subsets: ['latin']
+});
 
 export default function RootLayout({
   children,
@@ -21,11 +27,8 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <head>
-        <link href='https://fonts.googleapis.com/css?family=Roboto Mono' rel='stylesheet' />
-      </head>
       <body
-        className={`antialiased`}
+        className={`${MainFont.className} antialiased`}
       >
         <Link href="/" className="absolute top-10 left-10 text-[#00A576] bg-gray-700 p-1 rounded-full">
           <FontAwesomeIcon icon={faHouse} size="2x" />

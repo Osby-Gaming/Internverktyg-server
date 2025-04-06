@@ -40,7 +40,7 @@ export class Appwrite_Common {
 
     async deleteDocument(collectionId: string, documentId: string) {
         try {
-            //@ts-expect-error
+            //@ts-expect-error appwrite client is identical on both server and client, but they're different types
             const databases = new this.Databases(this.getClient());
     
             const result = await databases.deleteDocument(
@@ -76,7 +76,7 @@ export class Appwrite_Common {
 
     async getDocument(collectionId: string, documentId: string, queries?: string[]) {
         try {
-            //@ts-expect-error
+            //@ts-expect-error appwrite client is identical on both server and client, but they're different types
             const databases = new this.Databases(this.getClient());
     
             const result = await databases.getDocument(
@@ -113,7 +113,7 @@ export class Appwrite_Common {
 
     async listDocuments(collectionID: string, queries: string[]) {
         try {
-            //@ts-expect-error
+            //@ts-expect-error appwrite client is identical on both server and client, but they're different types
             const databases = new this.Databases(this.getClient());
     
             const result = await databases.listDocuments(
@@ -149,7 +149,7 @@ export class Appwrite_Common {
 
     async insertDocument(collectionID: string, data: Record<string, any>) {
         try {
-            //@ts-expect-error
+            //@ts-expect-error appwrite client is identical on both server and client, but they're different types
             const databases = new this.Databases(this.getClient());
     
             const result = await databases.createDocument(DATABASE_ID, collectionID, frontend.ID.unique(), data);
@@ -181,7 +181,7 @@ export class Appwrite_Common {
 
     async updateDocument(collectionId: string, documentId: string, data: Record<string, any>) {
         try {
-            //@ts-expect-error
+            //@ts-expect-error appwrite client is identical on both server and client, but they're different types
             const databases = new this.Databases(this.getClient());
     
             const result = await databases.updateDocument(DATABASE_ID, collectionId, documentId, data);

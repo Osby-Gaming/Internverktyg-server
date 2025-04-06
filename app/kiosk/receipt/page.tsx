@@ -3,7 +3,7 @@
 import { getKioskPurchase } from "@/lib/appwrite_client";
 import { CheckoutItem } from "@/lib/types";
 import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { Receipt } from "@/lib/receipt"
 import Link from "next/link";
@@ -14,14 +14,9 @@ export default function Page() {
 
     const id = searchParams.get('id');
 
-    if (!id) {
-        router.push('/kiosk');
-
-        return;
-    }
     useEffect(() => {
         (async () => {
-            const purchaseReq = await getKioskPurchase(id);
+            const purchaseReq = await getKioskPurchase(id ?? "");
 
             if (purchaseReq.data === null) {
                 router.push('/kiosk');
@@ -30,7 +25,7 @@ export default function Page() {
 
             const itemIdToSubtractionIndex: Record<string, number> = {};
 
-            for (let voucher of purchaseReq.data.kioskVouchers) {
+            for (const voucher of purchaseReq.data.kioskVouchers) {
                 if (!itemIdToSubtractionIndex[voucher.kioskItem.$id]) {
                     itemIdToSubtractionIndex[voucher.kioskItem.$id] = voucher.kioskItem.price;
                 } else {
@@ -46,7 +41,7 @@ export default function Page() {
 
             const items = JSON.parse(purchaseReq.data.items_json) as CheckoutItem[];
 
-            for (let item of items) {
+            for (const item of items) {
                 markdown += `${item.name} | ${item.amount}| ${(item.amount * item.price).toLocaleString()} kr\n`
 
                 if (itemIdToSubtractionIndex[item.$id]) {
@@ -57,7 +52,7 @@ export default function Page() {
             markdown += `---\n^SUMMA | ^${purchaseReq.data.total.toLocaleString()} kr`
 
             const receipt = Receipt.from(markdown, '-c 42 -l en');
-            //@ts-expect-error
+            //@ts-expect-error This library does not support types
             const svg: string = await receipt.toSVG();
 
             const el = document.getElementById('svg');
@@ -65,7 +60,7 @@ export default function Page() {
             if (el) {
                 el.innerHTML = svg;
             }
-            //@ts-expect-error
+            //@ts-expect-error This library does not support types
             const png: string = await receipt.toPNG();
 
             const downloadButton = document.getElementById('downloadButton');
@@ -79,7 +74,14 @@ export default function Page() {
                 }
             }
         })()
-    }, []);
+    }, [id, router]);
+
+    if (!id) {
+        router.push('/kiosk');
+
+        return;
+    }
+
     return (
         <div>
             <div className="bg-white" id="svg"></div>

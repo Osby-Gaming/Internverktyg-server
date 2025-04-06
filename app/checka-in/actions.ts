@@ -36,7 +36,7 @@ export async function validate(personnummer: string): Promise<response> {
             })
         })
 
-        // @ts-ignore
+        // @ts-expect-erro
         if (!response.ok || !(await response.json()).response.member_found) {
             return {
                 status: response.status,

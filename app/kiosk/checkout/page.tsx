@@ -34,7 +34,7 @@ export default function Page() {
         setAge(getAgeFromSSN(cart.ssn));
 
         setInstructions(generateVoucherInstructions(cart.items, cart.vouchers));
-    }, [])
+    }, [router])
 
     const is15 = age >= 15;
 
