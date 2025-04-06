@@ -12,7 +12,8 @@ export default function Form() {
     const [phone_number, setPhoneNumber] = useState('');
     const [lastLink, setLastLink] = useState('');
 
-    async function handleSubmit() {
+    async function handleSubmit(e: MouseEvent) {
+        e.preventDefault();
         const seatMapAccessKey = await getSeatmapAccessKey(ssn)
 
         const participantReq = await createParticipant(ssn, name, email, allergies, phone_number, seatMapAccessKey);
@@ -30,7 +31,7 @@ export default function Form() {
         setAllergies('');
         setPhoneNumber('');
 
-        setLastLink(`https://osbygaming.se/seatmap/1?access=${seatMapAccessKey}`)
+        setLastLink(`https://osbygaming.se/seatmap/0?access=${seatMapAccessKey}`)
     }
 
     return (
@@ -51,7 +52,10 @@ export default function Form() {
                 <label htmlFor="phone_number">Telefonnummer: </label>
                 <input type="text" id="phone_number" name="phone_number" onChange={(e) => setPhoneNumber(e.target.value)} required />
                 <br />
-                <button type="submit" onClick={handleSubmit}>Skicka</button>
+                <button type="submit" onClick={(e) => {
+                    //@ts-ignore
+                    handleSubmit(e);
+                }}>Skicka</button>
             </form>
             <br />
             { lastLink === '' ? null : (<p>{ lastLink }</p>)}
