@@ -21,6 +21,13 @@ export default function AuthRouter({
         if ((await getLoggedInAccount()).data === null && !guestPaths.find(path => pathname.startsWith(path))) {
           router.push('/login');
         }
+        if (guestPaths.find(path => pathname.startsWith(path))) {
+          const homebutton = document.getElementById("homebutton");
+          
+          if (homebutton) {
+            homebutton.style.display = "none";
+          }
+        }
       })()
     })
 

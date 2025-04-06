@@ -30,7 +30,7 @@ export default function RootLayout({
       <body
         className={`${MainFont.className} antialiased`}
       >
-        <Link href="/" className="absolute top-10 left-10 text-[#00A576] bg-gray-700 p-1 rounded-full">
+        <Link href="/" className="absolute top-10 left-10 text-[#00A576] bg-gray-700 p-1 rounded-full" id="homebutton">
           <FontAwesomeIcon icon={faHouse} size="2x" />
         </Link>
         <div className="min-h-screen w-full flex justify-center items-center">
