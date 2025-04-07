@@ -15,9 +15,6 @@ export default function RoomOne() {
     const searchParams = useSearchParams();
     const accessKey = searchParams.get('access');
 
-    const [lastClickedOutside, setLastClickedOutside] = useState(Date.now());
-    const [lastClickedClaimButton, setLastClickedClaimButton] = useState(Date.now());
-
     const [seatTakenByUser, setSeatTakenByUser] = useState<string | null>(null);
     const [seatTakenByUserRoom, setSeatTakenByUserRoom] = useState<string | null>(null);
 
@@ -47,15 +44,7 @@ export default function RoomOne() {
 
     useEffect(() => {
         loadSeats();
-
-        document.getElementById("seatmap_area")?.addEventListener("click", () => {
-            setLastClickedOutside(Date.now());
-
-            if ((lastClickedClaimButton + 2) < lastClickedOutside) {
-                setSelected(null);
-            }
-        }, true)
-    }, [lastClickedClaimButton, lastClickedOutside, loadSeats])
+    }, [])
 
     function handleSelect(number: string) {
         if (disableMapInteraction) return;
@@ -63,7 +52,7 @@ export default function RoomOne() {
         const copyOfLastSelected = lastSelected;
         setLastSelected(number);
 
-        if ((lastClickedOutside + 2) > Date.now() && (copyOfLastSelected === number || lastSelected === number)) {
+        if ((copyOfLastSelected === number || lastSelected === number)) {
             setSelected(null);
 
             setLastSelected(null);
@@ -121,8 +110,6 @@ export default function RoomOne() {
                         </p>
                         <div className="w-[20%] p-2">
                             <button disabled={!seatsAvailable.includes(selected)} onClick={async () => {
-                                setLastClickedClaimButton(Date.now());
-
                                 if (accessKey) {
                                     setClaimButtonContent(<Loading></Loading>);
 
