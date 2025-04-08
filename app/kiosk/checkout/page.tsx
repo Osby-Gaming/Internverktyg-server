@@ -34,9 +34,11 @@ export default function Page() {
         setAge(getAgeFromSSN(cart.ssn));
 
         setInstructions(generateVoucherInstructions(cart.items, cart.vouchers));
-    }, [router])
+    }, [])
 
     const is15 = age >= 15;
+
+    const hasAgeLimitedItems = !!(cart?.items.reduce((a, current) => a + (current.age_restricted_15 ? 1 : 0), 0));
 
     return (
         <div>
@@ -45,9 +47,9 @@ export default function Page() {
                     <div className="flex mb-10">
                         <h1 className="mr-4 text-6xl font-bold">BETALA</h1>
                         <div className="relative">
-                            <h3 className="text-2xl font-thin thin-text absolute bottom-0 whitespace-nowrap">Armbandsnummer: 23</h3>
+                            <h3 className="text-2xl font-thin thin-text absolute bottom-0 whitespace-nowrap">Armbandsnummer: {cart?.wristband_number}</h3>
                         </div>
-                        <h3 className="text-2xl font-thin thin-text whitespace-nowrap invisible">Armbandsnummer: 23</h3>
+                        <h3 className="text-2xl font-thin thin-text whitespace-nowrap invisible">Armbandsnummer: {cart?.wristband_number}</h3>
                         <div className="w-[calc(58rem-1rem-216px-260px)]"></div>
                     </div>
                     <div className="flex mb-2 pl-8">
@@ -135,18 +137,13 @@ export default function Page() {
                             </div>
                         </div>
                     </div>
-                    <div className={is15 ? 'mt-4 invisible' : 'flex mt-4'}>
+                    <div className={!is15 && hasAgeLimitedItems ? 'flex mt-4' : 'mt-4 invisible'}>
                         <h4 className="text-red-600 text-xl font-bold w-[50%] select-none">
                             (UNDER 15!)
                         </h4>
                         <label className="form-control flex w-[50%]">
                             <p className="text-xl mr-4 select-none">Sälj ändå</p>
-                            <input type="checkbox" name="checkbox-checked" checked={sellAnywaysChecked} onChange={(event) => setSellAnywaysChecked(event.target.checked)} disabled={(() => {
-                                if (is15) {
-                                    return true;
-                                }
-                                return false;
-                            })()} />
+                            <input type="checkbox" name="checkbox-checked" checked={sellAnywaysChecked} onChange={(event) => setSellAnywaysChecked(event.target.checked)} disabled={(() => is15)()} />
                         </label>
                     </div>
                 </div>
@@ -158,7 +155,7 @@ export default function Page() {
                     if (!cart) {
                         return;
                     }
-                    if (!sellAnywaysChecked && !is15) {
+                    if (!sellAnywaysChecked && hasAgeLimitedItems && !is15) {
                         return;
                     }
                     const wristbandReq = await getWristband(cart.wristband_number, ['$id'])
