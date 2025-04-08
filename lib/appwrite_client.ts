@@ -282,7 +282,8 @@ export async function generateVouchersForParticipant(wristband: string) {
     return Promise.all([createVoucher("67eed2990025d9048308", wristband),
     createVoucher("67eed2df0033e3ccf90a", wristband),
     createVoucher("67eed3190022da7e762a", wristband),
-    createVoucher("67eed37400172d642942", wristband)]);
+    createVoucher("67eed37400172d642942", wristband),
+    createVoucher("67f5631c0014248ae9e4", wristband)]);
 }
 
 export async function getKioskPurchase(purchaseID: string, include?: string[]) {
