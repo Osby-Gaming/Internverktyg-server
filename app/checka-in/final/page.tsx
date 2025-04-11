@@ -16,7 +16,7 @@ export default async function Page({ searchParams }: { searchParams: Promise<{ [
         id = id[0];
     }
 
-    if (!id || !id.match(/^\d{0,4}$/)) {
+    if (!id || !id.match(/^\d{0,5}$/)) {
         return redirect("/checka-in");
     }
 

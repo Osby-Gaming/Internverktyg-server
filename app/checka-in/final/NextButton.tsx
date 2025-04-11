@@ -20,7 +20,7 @@ export default function NextButton() {
         return;
     }
 
-    if (!wId || !wId.match(/^\d{0,4}$/)) {
+    if (!wId || !wId.match(/^\d{0,5}$/)) {
         router.push("/checka-in");
         return;
     }
