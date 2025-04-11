@@ -13,7 +13,7 @@ export default function WristbandNumberInput() {
     const [error, setError] = useState("");
 
     function inputToFormatted(): string {
-        return "0".repeat(5 - input.length) + input;
+        return "0".repeat(6 - input.length) + input;
     }
 
     async function submit() {
@@ -42,7 +42,7 @@ export default function WristbandNumberInput() {
 
     function hInput(value: string) {
         if (!input && value === "0") return;
-        if (input.length < 5) setInput(input + value);
+        if (input.length < 6) setInput(input + value);
     }
 
     return (
