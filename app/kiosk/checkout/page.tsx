@@ -40,6 +40,8 @@ export default function Page() {
 
     const hasAgeLimitedItems = !!(cart?.items.reduce((a, current) => a + (current.age_restricted_15 ? 1 : 0), 0));
 
+    console.log(hasAgeLimitedItems);
+
     return (
         <div>
             <div className="flex">
@@ -180,6 +182,9 @@ export default function Page() {
 
                     router.push('/kiosk/receipt?id=' + purchaseReq.data.$id);
                 }} disabled={(() => {
+                    if (!hasAgeLimitedItems) {
+                        return false;
+                    }
                     if (!sellAnywaysChecked && !is15) {
                         return true;
                     }
