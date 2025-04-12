@@ -41,7 +41,6 @@ export function createSeatMapKey(ssn: string) {
 }
 
 export function generateVoucherInstructions(itemsIn: CheckoutItem[], vouchers: Models.Document[]): VoucherInstructions {
-    console.log(vouchers)
     const items = itemsIn.map(item => ({ ...item }));
 
     const instructions = {
@@ -53,6 +52,7 @@ export function generateVoucherInstructions(itemsIn: CheckoutItem[], vouchers: M
         let i;
 
         if (items.find((item, i2) => {
+            console.log(item, voucher);
             i = i2;
 
             console.log(i2, item.$id, voucher.kioskItem.$id, voucher)
