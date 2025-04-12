@@ -168,7 +168,7 @@ export default function Page() {
 
                     const wristbandID = wristbandReq.data.$id;
 
-                    const purchaseReq = await placeKioskPurchase(cart.items, wristbandID, selectedPayment, instructions);
+                    const purchaseReq = await placeKioskPurchase(cart.items, wristbandID, selectedPayment, (useVouchers ? instructions : { use_vouchers: [], subtract: 0 }));
 
                     if (purchaseReq.data === null) {
                         console.log(2)
