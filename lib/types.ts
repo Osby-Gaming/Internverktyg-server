@@ -35,4 +35,4 @@ export interface VoucherInstructions {
     subtract: number
 }
 
-export type PaymentMethodEnum = 'swish' | 'cash';
+export type PaymentMethodEnum = 'swish' | 'cash' | 'custom';

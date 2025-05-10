@@ -17,6 +17,8 @@ export default function Page() {
         use_vouchers: [],
         subtract: 0
     });
+    const [customPaymentNote, setCustomPaymentNote] = useState<string>('');
+    const [error, setError] = useState<string | null>(null);
 
     const router = useRouter();
 
@@ -39,8 +41,6 @@ export default function Page() {
     const is15 = age >= 15;
 
     const hasAgeLimitedItems = !!(cart?.items.reduce((a, current) => a + (current.age_restricted_15 ? 1 : 0), 0));
-
-    console.log(hasAgeLimitedItems);
 
     return (
         <div>
@@ -77,6 +77,16 @@ export default function Page() {
                             <p>Kontanter</p>
                         </label>
                     </div>
+                    <div className="radio">
+                        <label>
+                            <span className="checkmark"></span>
+                            <input type="radio" value="custom"
+                                checked={selectedPayment === 'custom'}
+                                onChange={() => setSelectedPayment('custom')} />
+                            <p>Specifierad: </p>
+                            <input disabled={selectedPayment !== 'custom'} onChange={e => setCustomPaymentNote(e.target.value)} type="text" className="ml-4 h-5 rounded-none pl-1" />
+                        </label>
+                    </div>
                     <br />
                     <label className="form-control flex w-[50%]">
                         <input type="checkbox" name="checkbox-checked" checked={useVouchers} onChange={(event) => setUseVouchers(event.target.checked)} />
@@ -103,6 +113,7 @@ export default function Page() {
                         <h5 className="w-[50%] text-xl">Bord</h5>
                         <p className="w-[40%] text-xl ellipsis">{cart?.seat}</p>
                     </div>
+                        <p className="mt-10 text-xl text-red-500">{error}</p>
                 </div>
                 <div className="w-[30rem]">
                     <div className="relative h-[90%]">
@@ -163,18 +174,18 @@ export default function Page() {
                     const wristbandReq = await getWristband(cart.wristband_number, ['$id'])
 
                     if (wristbandReq.data === null) {
-                        console.log(1)
-                        alert("Add error handling here");
+                        setError(wristbandReq.message);
+
                         return;
                     }
 
                     const wristbandID = wristbandReq.data.$id;
 
-                    const purchaseReq = await placeKioskPurchase(cart.items, wristbandID, selectedPayment, (useVouchers ? instructions : { use_vouchers: [], subtract: 0 }));
+                    const purchaseReq = await placeKioskPurchase(cart.items, wristbandID, selectedPayment, customPaymentNote, (useVouchers ? instructions : { use_vouchers: [], subtract: 0 }));
 
                     if (purchaseReq.data === null) {
-                        console.log(2)
-                        alert("Add error handling here");
+                        setError(purchaseReq.message);
+
                         return;
                     }
 

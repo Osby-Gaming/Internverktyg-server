@@ -22,12 +22,13 @@ export default function Page() {
                     <div className="min-h-[32rem] overflow-x-scroll whitespace-nowrap overflow-visible">
                         <ItemGrid handleAdd={(item) => {
                             const checkoutItemsCopy = { ...checkoutItems };
+                            const itemInCopy = checkoutItemsCopy[item.$id];
 
-                            if (checkoutItemsCopy[item.$id] && checkoutItemsCopy[item.$id].stock !== checkoutItemsCopy[item.$id].amount) {
+                            if (itemInCopy && itemInCopy.stock !== itemInCopy.amount) {
                                 checkoutItemsCopy[item.$id].amount++;
-                            } else if (checkoutItemsCopy[item.$id] && checkoutItemsCopy[item.$id].stock === checkoutItemsCopy[item.$id].amount) {
+                            } else if (itemInCopy && itemInCopy.stock === itemInCopy.amount) {
                                 // Just catch the case where the amount is the same as the available stock.
-                                // Without this the amount just resets to 1 after exceeding stock.
+                                // Without this the amount just resets to 1 when exceeding stock.
                             } else if (item.stock > 0) {
                                 checkoutItemsCopy[item.$id] = { $id: item.$id, name: item.name, price: item.price, amount: 1, stock: item.stock, age_restricted_15: item.age_restricted_15 };
                             }
@@ -36,7 +37,7 @@ export default function Page() {
                         }} />
                     </div>
                 </div>
-                <div className="w-[2vw]"></div>
+                <div className="w-10"></div>
                 <div className="w-[30rem] relative">
                     <div className="absolute z-10 w-full h-full bg-[#181818] rounded-3xl">
                         <ul>

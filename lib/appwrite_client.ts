@@ -296,7 +296,7 @@ export async function getKioskPurchase(purchaseID: string, include?: string[]) {
     return COMMONLIB.getDocument(COLLECTION_KIOSK_PURCHASES_ID, purchaseID, queries);
 }
 
-export async function placeKioskPurchase(kioskItems: CheckoutItem[], wristbandID: string, payment_method: PaymentMethodEnum, voucherInstructions: VoucherInstructions) {
+export async function placeKioskPurchase(kioskItems: CheckoutItem[], wristbandID: string, payment_method: PaymentMethodEnum, customPaymentNote: string, voucherInstructions: VoucherInstructions) {
     const kioskItemIDs = kioskItems.map(kioskItem => kioskItem.$id);
     const totalPrice = kioskItems.reduce((acc, curr) => acc + (curr.price * curr.amount), 0) - voucherInstructions.subtract;
 

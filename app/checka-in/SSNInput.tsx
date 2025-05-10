@@ -53,7 +53,7 @@ export default function SSNInput() {
         if (input.length > 0) setInput(input.slice(0, input.length - 1))
     }
 
-    function hInput(value: string) {
+    function handleInput(value: string) {
         if (input.length < 12) setInput(input + value);
     }
 
@@ -62,7 +62,7 @@ export default function SSNInput() {
             <div className="w-full flex justify-center items-center">
                 <input className="text-4xl w-fit p-4 text-center text-white" type="text" value={inputToPersonnummer()} readOnly onKeyDown={(e) => {
                     if ("0123456789".includes(e.key)) {
-                        hInput(e.key);
+                        handleInput(e.key);
                     } else if (e.key == "Backspace" || e.key == "Delete") {
                         backspace();
                     } else if (e.key == "Enter") {
@@ -75,7 +75,7 @@ export default function SSNInput() {
             </div>
             <div className="w-full flex justify-center items-center">
                 <NumpadInput onNumber={(value: string) => {
-                    hInput(value);
+                    handleInput(value);
                 }} onDelete={() => {
                     backspace();
                 }} />
