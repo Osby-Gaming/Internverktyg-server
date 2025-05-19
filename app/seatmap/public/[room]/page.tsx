@@ -4,10 +4,17 @@ import RoomTwo from "./room_two";
 
 export default async function Page({
     params,
+    searchParams
   }: {
-    params: Promise<{ room: string }>
+    params: Promise<{ room: string }>,
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
   }) {
+    const accessKey = (await searchParams)["access"];
     const room = (await params)["room"];
+
+    if (!accessKey) {
+      return redirect("/seatmap/public");
+    }
 
     if (room === "0") {
         return (<RoomOne></RoomOne>);
@@ -16,5 +23,5 @@ export default async function Page({
         return <RoomTwo></RoomTwo>;
     }
 
-    redirect("/seatmap/0");
+    redirect("/seatmap/public/0");
 }
