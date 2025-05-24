@@ -8,18 +8,20 @@ export default function Seatmap({ className }: { className: string }) {
             x: 76,
             y: 33,
             objects: [
+                "1000",
                 { id: "1", name: "1", type: "seat", styleOverride: {} },
                 { id: "2", name: "2", type: "seat", styleOverride: {} },
                 { id: "3", name: "3", type: "seat", styleOverride: {} },
-                { id: "4", name: "4", type: "seat", styleOverride: {} },
-                { id: "1", name: "1", type: "seat", styleOverride: {} },
-                { id: "2", name: "2", type: "seat", styleOverride: {} },
-                { id: "3", name: "3", type: "seat", styleOverride: {} },
-                { id: "4", name: "4", type: "seat", styleOverride: {} },
-                { id: "1", name: "1", type: "seat", styleOverride: {} },
-                { id: "2", name: "2", type: "seat", styleOverride: {} },
-                { id: "3", name: "3", type: "seat", styleOverride: {} },
-                { id: "4", name: "4", type: "seat", styleOverride: {} }
+                { id: "5", name: "4", type: "seat", styleOverride: {} },
+                { id: "6", name: "1", type: "seat", styleOverride: {} },
+                { id: "7", name: "2", type: "seat", styleOverride: {} },
+                { id: "8", name: "3", type: "seat", styleOverride: {} },
+                { id: "9", name: "4", type: "seat", styleOverride: {} },
+                { id: "10", name: "1", type: "seat", styleOverride: {} },
+                { id: "11", name: "2", type: "seat", styleOverride: {} },
+                { id: "12", name: "3", type: "seat", styleOverride: {} },
+                { id: "13", name: "4", type: "seat", styleOverride: {} },
+                "1496"
             ]
         });
     })
@@ -47,13 +49,135 @@ export type Cell = {
     }
 } | null;
 
+export type MapLayoutInput = {
+    x: number;
+    y: number;
+    objects: (Cell | `${number}`)[]; // putting an Int will create the Ints amount of null cells
+};
+
 export type MapLayout = {
     x: number;
     y: number;
     objects: Cell[];
 };
 
+export type Collision = {
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    cellIndex: number;
+}
+
 export type MapMode = "view" | "edit";
+
+class CollisionManager {
+    collisions: {
+        potentialCollisions: Collision[];
+        activeMouseCollisions: Collision[];
+        activeMouseHoverCollisions: Collision[];
+    } = {
+        potentialCollisions: [],
+        activeMouseCollisions: [],
+        activeMouseHoverCollisions: []
+    }
+
+    map: Map;
+
+    listeners: {
+        click: ((collission: Collision) => void)[],
+        hover: ((collission: Collision) => void)[]
+    } = {
+        click: [],
+        hover: []
+    }
+
+    constructor(map: Map) {
+        this.map = map;
+
+        this.map.canvas.addEventListener("mousedown", (event) => {
+            event.preventDefault();
+            this.map.canvas.focus();
+
+            this.map.controller.mouseX = event.offsetX;
+            this.map.controller.mouseY = event.offsetY;
+            this.map.controller.mouseDown = true;
+
+            this.collisions.activeMouseCollisions = this.collisions.potentialCollisions.filter(collision => {
+                return collision.x <= this.map.controller.mouseX &&
+                    collision.x + collision.width >= this.map.controller.mouseX &&
+                    collision.y <= this.map.controller.mouseY &&
+                    collision.y + collision.height >= this.map.controller.mouseY;
+            });
+        });
+
+        this.map.canvas.addEventListener("mousemove", (event) => {
+            event.preventDefault();
+
+            this.map.controller.mouseX = event.offsetX;
+            this.map.controller.mouseY = event.offsetY;
+
+            if (this.map.controller.mouseDown) {
+                this.collisions.activeMouseCollisions = this.collisions.potentialCollisions.filter(collision => {
+                    return collision.x <= this.map.controller.mouseX &&
+                        collision.x + collision.width >= this.map.controller.mouseX &&
+                        collision.y <= this.map.controller.mouseY &&
+                        collision.y + collision.height >= this.map.controller.mouseY;
+                });
+            }
+
+            this.collisions.activeMouseHoverCollisions = this.collisions.potentialCollisions.filter(collision => {
+                return collision.x <= this.map.controller.mouseX &&
+                    collision.x + collision.width >= this.map.controller.mouseX &&
+                    collision.y <= this.map.controller.mouseY &&
+                    collision.y + collision.height >= this.map.controller.mouseY;
+            })
+
+            for (const collision of this.collisions.activeMouseHoverCollisions) {
+                for (const listener of this.listeners.hover) {
+                    listener(collision);
+                }
+            }
+        });
+
+        this.map.canvas.addEventListener("mouseup", (event) => {
+            event.preventDefault();
+
+            this.map.controller.mouseX = event.offsetX;
+            this.map.controller.mouseY = event.offsetY;
+            this.map.controller.mouseDown = false;
+
+            for (const collision of this.collisions.activeMouseCollisions) {
+                for (const listener of this.listeners.click) {
+                    listener(collision);
+                }
+            }
+
+            this.collisions.activeMouseCollisions = [];
+        });
+    }
+
+    addEventListener(type: "click" | "hover", callback: (collision: Collision) => void) {
+        if (type in this.listeners) {
+            this.listeners[type].push(callback);
+        } else {
+            throw new Error(`Invalid event type: ${type}`);
+        }
+    }
+
+    registerPotentialCollisions(collisions: Collision[]) {
+        this.collisions.potentialCollisions = collisions;
+
+        if (this.map.controller.mouseDown) {
+            this.collisions.activeMouseCollisions = this.collisions.potentialCollisions.filter(collision => {
+                return collision.x <= this.map.controller.mouseX &&
+                    collision.x + collision.width >= this.map.controller.mouseX &&
+                    collision.y <= this.map.controller.mouseY &&
+                    collision.y + collision.height >= this.map.controller.mouseY;
+            });
+        }
+    }
+}
 
 class Map {
     mode: MapMode;
@@ -74,12 +198,52 @@ class Map {
             zoom: 1,
         }
 
+    controller: {
+        keysPressed: string[];
+        mouseX: number;
+        mouseY: number;
+        mouseDown: boolean;
+    } = {
+        keysPressed: [],
+        mouseX: 0,
+        mouseY: 0,
+        mouseDown: false
+    }
+
+    collisions: CollisionManager;
+
     ongoingTouches: { identifier: number, pageX: number, pageY: number }[] = [];
 
-    constructor(mode: MapMode, canvasId: string, mapLayout: MapLayout) {
+    hoveredCell: number = -1;
+    selectedCell: number = -1;
+
+    static inputProcessing(input: MapLayoutInput) {
+        const processedObjects: Cell[] = [];
+
+        for (let i = 0; i < input.objects.length; i++) {
+            const cell = input.objects[i];
+
+            if (typeof cell === "string") {
+                const count = parseInt(cell, 10);
+                for (let j = 0; j < count; j++) {
+                    processedObjects.push(null);
+                }
+            } else {
+                processedObjects.push(cell);
+            }
+        }
+
+        return {
+            x: input.x,
+            y: input.y,
+            objects: processedObjects
+        } as MapLayout;
+    }
+
+    constructor(mode: MapMode, canvasId: string, mapLayout: MapLayoutInput) {
         this.mode = mode;
 
-        this.mapLayout = mapLayout;
+        this.mapLayout = Map.inputProcessing(mapLayout);
         this.mapWidth = mapLayout.x * CELL_SIZE;
         this.mapHeight = mapLayout.y * CELL_SIZE;
 
@@ -88,6 +252,8 @@ class Map {
         this.canvas.height = this.canvas.offsetHeight;
 
         this.ctx = this.canvas.getContext("2d");
+
+        this.collisions = new CollisionManager(this);
 
         this.render();
 
@@ -112,28 +278,61 @@ class Map {
         });
 
         this.canvas.addEventListener("keydown", (event) => {
-            switch (event.key) {
-                case "ArrowUp":
-                    this.camera.y -= 10;
-                    break;
-                case "ArrowDown":
-                    this.camera.y += 10;
-                    break;
-                case "ArrowLeft":
-                    this.camera.x -= 10;
-                    break;
-                case "ArrowRight":
-                    this.camera.x += 10;
-                    break;
-            }
+            if (this.controller.keysPressed.includes(event.key)) return;
 
-            this.keepCameraConstraints();
+            this.controller.keysPressed.push(event.key);
         });
+
+        this.canvas.addEventListener("keyup", (event) => {
+            const index = this.controller.keysPressed.indexOf(event.key);
+
+            if (index > -1) {
+                this.controller.keysPressed.splice(index, 1);
+            }
+        })
+
+        setInterval(() => {
+            if (this.controller.keysPressed.length > 0) {
+                let multiplier = this.controller.keysPressed.includes("Shift") ? 3 : 1;
+
+                if ((this.controller.keysPressed.includes("ArrowUp") || this.controller.keysPressed.includes("ArrowDown")) 
+                && (this.controller.keysPressed.includes("ArrowLeft") || this.controller.keysPressed.includes("ArrowRight"))
+                && !(this.controller.keysPressed.includes("ArrowUp") && this.controller.keysPressed.includes("ArrowDown"))
+                && !(this.controller.keysPressed.includes("ArrowLeft") && this.controller.keysPressed.includes("ArrowRight"))) {
+                    multiplier /= Math.sqrt(2); // Diagonal movement adjustment when using only two arrow keys that make a diagonal, based on Pythagorean theorem
+                }
+
+                if (this.controller.keysPressed.includes("ArrowUp")) {
+                    this.camera.y -= 10 * multiplier;
+                }
+                if (this.controller.keysPressed.includes("ArrowDown")) {
+                    this.camera.y += 10 * multiplier;
+                }
+                if (this.controller.keysPressed.includes("ArrowLeft")) {
+                    this.camera.x -= 10 * multiplier;
+                }
+                if (this.controller.keysPressed.includes("ArrowRight")) {
+                    this.camera.x += 10 * multiplier;
+                }
+
+                this.keepCameraConstraints();
+            }
+        }, 32);
 
         this.canvas.addEventListener("touchstart", this.handleTouchStartDecorator(() => this));
         this.canvas.addEventListener("touchend", this.handleTouchEndDecorator(() => this));
         this.canvas.addEventListener("touchcancel", this.handleTouchCancelDecorator(() => this));
         this.canvas.addEventListener("touchmove", this.handleTouchMoveDecorator(() => this));
+
+        this.collisions.addEventListener("hover", (collision) => {
+            if (this.hoveredCell === collision.cellIndex) {
+                return;
+            };
+
+            this.hoveredCell = collision.cellIndex;
+
+            this.render();
+        });
     }
 
     handleTouchStartDecorator(mapGetter: () => Map) {
@@ -232,9 +431,6 @@ class Map {
     }
 
     keepCameraConstraints() {
-        const mapHeight = Math.floor(this.canvas.height / CELL_SIZE) * CELL_SIZE;
-        const mapWidth = Math.floor(this.canvas.width / CELL_SIZE) * CELL_SIZE;
-
         if (this.camera.y > ((this.mapHeight / 2) * this.camera.zoom)) {
             this.camera.y = (this.mapHeight / 2) * this.camera.zoom;
         } else if (this.camera.y < (0 - ((this.mapHeight / 2) * this.camera.zoom))) {
@@ -251,70 +447,13 @@ class Map {
     }
 
     render() {
+        const collisions: Collision[] = [];
+
         if (!this.ctx) return;
 
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
-        // if (this.mode === "edit") {
-        //     const cellSize = CELL_SIZE * this.camera.zoom;
-        //     const amountX = Math.ceil(this.canvas.width / cellSize) + 1;
-        //     const amountY = Math.ceil(this.canvas.height / cellSize) + 1;
-
-        //     for (let i = 0; i < amountY; i++) {
-        //         for (let j = 0; j < amountX; j++) {
-        //             const x = j * cellSize + (this.canvas.width - amountX * cellSize) / 2;
-        //             const y = i * cellSize + (this.canvas.height - amountY * cellSize) / 2;
-
-        //             this.ctx.strokeStyle = "#CCC";
-        //             this.ctx.lineWidth = 0.5;
-        //             this.ctx.strokeRect(x, y, cellSize, cellSize);
-        //         }
-        //     }
-        // }
-
-        // const renderedCellSize = CELL_SIZE * this.camera.zoom;
-
-        // const offsetX = this.camera.x * this.camera.zoom;
-        // const offsetY = this.camera.y * this.camera.zoom;
-        // const marginX = (this.canvas.width - this.mapWidth * this.camera.zoom) / 2 + offsetX;
-        // const marginY = (this.canvas.height - this.mapHeight * this.camera.zoom) / 2 + offsetY;
-
-        // const amountAbove = Math.ceil(this.canvas.height / renderedCellSize);
-        // const amountLeft = Math.ceil(this.canvas.width / renderedCellSize);
-
-        // const cellsY = ((amountAbove * 2) + this.mapLayout.y);
-        // const cellsX = ((amountLeft * 2) + this.mapLayout.x);
-
-        // for (let i = 0; i < cellsY; i++) {
-        //     for (let j = 0; j < cellsX; j++) {
-        //         if (this.mode === "edit" && ((i <= amountAbove || i >= this.mapLayout.y + amountAbove) || (j <= amountLeft || j >= this.mapLayout.x + amountLeft))) {
-        //             const y = i * renderedCellSize + (this.canvas.height - cellsX * renderedCellSize) / 2;
-        //             const x = j * renderedCellSize + (this.canvas.width - cellsY * renderedCellSize) / 2;
-
-        //             this.ctx.strokeStyle = "#CCC";
-        //             this.ctx.lineWidth = 0.5;
-        //             this.ctx.strokeRect(x, y, renderedCellSize, renderedCellSize);
-
-        //             continue;
-        //         }
-
-        //         const cell = this.mapLayout.objects[(i - amountAbove) * this.mapLayout.x + (j - amountLeft)];
-        //         const cellStyle = this.getCellStyle(cell);
-
-        //         const x = j * renderedCellSize + marginX;
-        //         const y = i * renderedCellSize + marginY;
-
-        //         this.ctx.strokeStyle = cellStyle.borderColor;
-        //         this.ctx.lineWidth = cellStyle.borderWidth * this.camera.zoom;
-        //         this.ctx.strokeRect(x, y, renderedCellSize, renderedCellSize);
-
-        //         this.ctx.fillStyle = cellStyle.backgroundColor;
-        //         this.ctx.fillRect(x, y, renderedCellSize, renderedCellSize);
-        //     }
-        // }
-
         const renderedCellSize = CELL_SIZE * this.camera.zoom;
-
         const columnsAmount = this.mapLayout.x;
         const rowsAmount = this.mapLayout.y;
 
@@ -375,6 +514,14 @@ class Map {
                         const xPos = x * renderedCellSize + marginX - this.camera.x;
                         const yPos = y * renderedCellSize + marginY - this.camera.y;
 
+                        collisions.push({
+                            x: xPos,
+                            y: yPos,
+                            width: renderedCellSize,
+                            height: renderedCellSize,
+                            cellIndex: cellIndex
+                        });
+
                         this.ctx.strokeStyle = "#CCC";
                         this.ctx.lineWidth = 0.5 * this.camera.zoom;
                         this.ctx.strokeRect(xPos, yPos, renderedCellSize, renderedCellSize);
@@ -393,8 +540,16 @@ class Map {
                     continue;
                 }
 
+                collisions.push({
+                    x: xPos,
+                    y: yPos,
+                    width: renderedCellSize,
+                    height: renderedCellSize,
+                    cellIndex: cellIndex
+                });
+
                 this.ctx.strokeStyle = cellStyle.borderColor;
-                this.ctx.lineWidth = cellStyle.borderWidth * this.camera.zoom;
+                this.ctx.lineWidth = cellStyle.borderWidth * this.camera.zoom * (this.hoveredCell === cellIndex ? 5 : 1);
                 this.ctx.strokeRect(xPos, yPos, renderedCellSize, renderedCellSize);
 
                 this.ctx.fillStyle = cellStyle.backgroundColor;
@@ -407,6 +562,8 @@ class Map {
                 }
             }
         }
+
+        this.collisions.registerPotentialCollisions(collisions);
     }
 
     getCellStyle(cell: Cell): { backgroundColor: string, borderColor: string, borderWidth: number, text: string } {
