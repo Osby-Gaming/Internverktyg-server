@@ -30,7 +30,7 @@ export default function Seatmap({ className, editMenuClassName }: { className: s
             <canvas tabIndex={1} className={className} id="seatmap_area">
                 Javascript is required to render the seatmap.
             </canvas>
-            <div className={"absolute bottom-0 right-0 bg-[rgba(0,0,0,0.6)] " + editMenuClassName} id="edit_menu">
+            <div className={"absolute bottom-0 right-0 bg-[rgba(0,0,0,0.6)] hidden " + editMenuClassName} id="edit_menu">
                 <input tabIndex={2} type="text" className="opacity-0 w-0 h-0 p-0" />
                 <canvas tabIndex={3} className="w-full h-full absolute bottom-0 right-0"></canvas>
             </div>
@@ -46,7 +46,7 @@ const ZOOM_LEVELS = [0.8, 1, 1.2, 1.5, 2, 3, 4, 5, 6]; // Predefined zoom levels
 const DEFAULT_MAP_BACKGROUND_COLOR = "#000";
 const DEFAULT_ZOOM_LEVEL: PossibleZoomLevels = 1;
 
-const DEFAULT_CELL_STYLES: Record<SeatType, CellStyleOverride> = {
+const DEFAULT_CELL_STYLES: Record<CellType, CellStyleOverride> = {
     seat: {
         backgroundColor: "#0F0",
         borderColor: "#000",
@@ -154,16 +154,27 @@ const DEFAULT_CELL_STYLES: Record<SeatType, CellStyleOverride> = {
     }
 }
 
-export type SeatType = "seat" | "aisle" | "wall" | "door" | "custom";
+const EDITMENU_LABELS: Record<string, string> = {
+    backgroundColor: "Background Color",
+    borderColor: "Border Color",
+    borderWidth: "Border Width",
+    text: "Text",
+    opacity: "Opacity",
+    default_text_1: "Click on a cell to edit it"
+};
+
+const CELL_STYLE_KEYS = Object.keys(EDITMENU_LABELS).slice(0, 5);
+
+export type CellType = "seat" | "aisle" | "wall" | "door" | "custom";
 
 export type Cell = {
     id: string;
     name: string;
-    type: SeatType;
+    type: CellType;
     styleOverride?: CellStyleOverride
 } | null;
 
-export type CellStyleOverrideNoHover = {
+export type CellStyleOverridePure = {
     backgroundColor?: string;
     borderColor?: string;
     borderWidth?: number;
@@ -171,9 +182,9 @@ export type CellStyleOverrideNoHover = {
     opacity?: number;
 }
 
-export type CellStyleOverride = CellStyleOverrideNoHover & {
-    hoverOverride?: CellStyleOverrideNoHover,
-    selectedOverride?: CellStyleOverrideNoHover
+export type CellStyleOverride = CellStyleOverridePure & {
+    hoverOverride?: CellStyleOverridePure,
+    selectedOverride?: CellStyleOverridePure
 }
 
 export type PossibleZoomLevels = 0.8 | 1 | 1.2 | 1.5 | 2 | 3 | 4 | 5 | 6;
@@ -220,37 +231,167 @@ export type Collision = {
     cellIndex: number;
 }
 
+export type EditMenuElement = {
+    type: "input" | "button" | "label" | "select";
+    label: string;
+    value?: string;
+    options?: { value: string, label: string }[];
+}
+
 export type MapMode = "view" | "edit";
 
-class EditMenuManager {
+class EditMenu {
     map: Map;
-    canvas: HTMLCanvasElement | null = null;
-    ctx: CanvasRenderingContext2D | null = null;
-    input: HTMLInputElement | null = null;
 
-    constructor(map: Map, editMenuId?: string) {
+    canvas: HTMLCanvasElement;
+    ctx: CanvasRenderingContext2D;
+    input: HTMLInputElement;
+
+    collisions: CollisionManager;
+
+    controller: {
+        mouseX: number;
+        mouseY: number;
+        mouseDown: boolean;
+    } = {
+            mouseX: 0,
+            mouseY: 0,
+            mouseDown: false
+        }
+
+    state: {
+        input: {
+            property: keyof CellStyleOverridePure | null;
+            value: string;
+        },
+        animations: {
+            blinkingCursor: {
+                lastTick: number;
+                lastState: "visible" | "hidden";
+                interval: number;
+            }
+        },
+        selectedInput: number
+    } = {
+            input: {
+                property: null,
+                value: ""
+            },
+            animations: {
+                blinkingCursor: {
+                    lastTick: 0,
+                    lastState: "hidden",
+                    interval: 500 as const
+                }
+            },
+            selectedInput: -1
+        }
+
+    elements: EditMenuElement[] = [];
+
+    constructor(map: Map, editMenuId: string) {
         this.map = map;
 
-        if (editMenuId) {
-            this.register(editMenuId);
-        }
-    }
-
-    register(editMenuId: string) {
-        this.canvas = document.querySelector(`#${editMenuId} > canvas`);
-        if (!this.canvas) {
+        const canvas = document.querySelector(`#${editMenuId} > canvas`);
+        if (canvas === null) {
             throw new Error(`Canvas element for ID ${editMenuId} not found.`);
         }
+
+        this.canvas = canvas as HTMLCanvasElement;
+
+        this.collisions = new CollisionManager(this);
 
         this.canvas.width = this.canvas.offsetWidth;
         this.canvas.height = this.canvas.offsetHeight;
 
-        this.ctx = this.canvas.getContext("2d");
+        this.ctx = this.canvas.getContext("2d") as CanvasRenderingContext2D;
 
-        this.input = document.querySelector(`#${editMenuId} > input`);
-        if (!this.input) {
+        let input = document.querySelector(`#${editMenuId} > input`);
+        if (input === null) {
             throw new Error(`Input element for ID ${editMenuId} not found.`);
         }
+
+        this.input = input as HTMLInputElement;
+
+        this.collisions.addEventListener("click", (collision) => {
+            if (collision.cellIndex < 0 || collision.cellIndex >= this.elements.length) {
+                return;
+            }
+
+            const element = this.elements[collision.cellIndex];
+
+            if (element.type === "input") {
+                this.state.input.property = element.label as keyof CellStyleOverridePure;
+                this.state.input.value = element.value || "";
+                this.input.value = this.state.input.value;
+                this.input.focus();
+                this.state.selectedInput = collision.cellIndex;
+                this.state.animations.blinkingCursor.lastTick = Date.now();
+                this.state.animations.blinkingCursor.lastState = "visible";
+            } else if (element.type === "button") {
+                // Handle button click logic here
+            }
+        });
+
+        setInterval(() => {
+            if (this.state.selectedInput > -1) {
+                if (Date.now() - this.state.animations.blinkingCursor.interval > this.state.animations.blinkingCursor.lastTick) {
+                    this.state.animations.blinkingCursor.lastTick = Date.now();
+    
+                    if (this.state.animations.blinkingCursor.lastState === "visible") {
+                        this.state.animations.blinkingCursor.lastState = "hidden";
+                    } else {
+                        this.state.animations.blinkingCursor.lastState = "visible";
+                    }
+                }
+            }
+
+            this.render();
+        }, 50)
+
+        this.setDefaultElements();
+
+        this.render();
+    }
+
+    setDefaultElements() {
+        this.elements = [];
+
+        this.elements.push({
+            type: "label",
+            label: "default_text1"
+        })
+
+        this.render();
+    }
+
+    selectCell(cellIndex: number) {
+        console.log(cellIndex);
+        const elements: EditMenuElement[] = [];
+
+        if (cellIndex < 0 || cellIndex >= this.map.mapLayout.objects.length) {
+            this.setDefaultElements();
+
+            return;
+        }
+
+        const cell = this.map.mapLayout.objects[cellIndex];
+
+        if (!cell && this.map.mode === "view") {
+            throw new Error(`No cell found at index: ${cellIndex}`);
+        }
+
+        const style = this.map.getSpecifiedCellStyle(cellIndex);
+
+        for (const key of CELL_STYLE_KEYS) {
+            elements.push({
+                type: "input",
+                label: key,
+                value: style[key as keyof CellStyleOverridePure]?.toString() || ""
+            });
+        }
+
+        this.elements = elements;
 
         this.render();
     }
@@ -258,12 +399,83 @@ class EditMenuManager {
     render() {
         if (!this.ctx || !this.canvas || !this.input) return;
 
+        const collisions: Collision[] = [];
+
+        const paddingX = 10;
+        const marginY = 30;
+
+        const inputHeight = 30;
+        const inputWidth = this.canvas.width - (paddingX * 2);
+        const inputPadding = 5;
+
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         this.ctx.fillStyle = "#FFF";
         this.ctx.font = `20px Arial`;
-        this.ctx.fillText("Edit Menu", 10, 30);
-        this.ctx.fillText("Click on a cell to edit it", 10, 60);
+        this.ctx.fillText("Edit Menu", paddingX, 30);
+
+        let lastElementYEnd = 60;
+
+        for (let i = 0; i < this.elements.length; i++) {
+            const element = this.elements[i];
+
+            const label = EDITMENU_LABELS[element.label];
+
+            if (element.type === "label") {
+                this.ctx.fillStyle = "#FFF";
+                this.ctx.font = `16px Arial`;
+                this.ctx.fillText(label, paddingX, lastElementYEnd);
+
+                const textMeasurements = this.ctx.measureText(label);
+
+                lastElementYEnd += textMeasurements.actualBoundingBoxAscent + textMeasurements.actualBoundingBoxDescent + marginY;
+            } else if (element.type === "input") {
+                this.ctx.fillStyle = "#FFF";
+                this.ctx.font = `16px Arial`;
+                this.ctx.fillText(label, paddingX, lastElementYEnd);
+
+                const textMeasurements = this.ctx.measureText(label);
+
+                lastElementYEnd += textMeasurements.actualBoundingBoxAscent + textMeasurements.actualBoundingBoxDescent;
+                
+                this.ctx.fillRect(paddingX, lastElementYEnd, inputWidth, inputHeight);
+
+                let cursorMarginX = paddingX + inputPadding;
+
+                if (element.value && element.value.length > 0) {
+                    this.ctx.fillStyle = "#000";
+                    this.ctx.font = `16px Arial`;
+                    const textMeasurements = this.ctx.measureText(element.value);
+                    const textHeight = textMeasurements.actualBoundingBoxAscent + textMeasurements.actualBoundingBoxDescent;
+
+                    this.ctx.fillText(element.value, cursorMarginX, lastElementYEnd + (inputHeight / 2) - (textHeight / 2));
+
+                    cursorMarginX += textMeasurements.width;
+                }
+
+                if (this.state.selectedInput === i && this.state.animations.blinkingCursor.lastState === "visible") {
+                    this.ctx.fillStyle = "#000";
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(cursorMarginX + 10, lastElementYEnd + inputPadding);
+                    this.ctx.lineTo(cursorMarginX + 10, lastElementYEnd + inputHeight - inputPadding);
+                    this.ctx.stroke();
+                }
+
+                collisions.push({
+                    x: paddingX,
+                    y: lastElementYEnd,
+                    width: inputWidth,
+                    height: inputHeight,
+                    cellIndex: i
+                })
+
+                lastElementYEnd += 30 + marginY;
+            } else if (element.type === "button") {
+                // Button rendering logic here
+            }
+        }
+
+        this.collisions.registerPotentialCollisions(collisions);
     }
 }
 
@@ -278,7 +490,7 @@ class CollisionManager {
             activeMouseHoverCollisions: []
         }
 
-    map: Map;
+    map: Map | EditMenu;
 
     listeners: {
         click: ((collission: Collision) => void)[],
@@ -288,7 +500,7 @@ class CollisionManager {
             hover: []
         }
 
-    constructor(map: Map) {
+    constructor(map: Map | EditMenu) {
         this.map = map;
 
         this.map.canvas.addEventListener("mousedown", (event) => {
@@ -419,7 +631,7 @@ class Map {
         }
 
     collisions: CollisionManager;
-    editMenu: EditMenuManager;
+    editMenu: EditMenu | null = null;
 
     ongoingTouches: { identifier: number, pageX: number, pageY: number }[] = [];
 
@@ -427,9 +639,9 @@ class Map {
         hoveredCell: number
         selectedCell: number
     } = {
-        hoveredCell: -1,
-        selectedCell: -1
-    }
+            hoveredCell: -1,
+            selectedCell: -1
+        }
 
     static inputProcessing(input: MapLayoutInput) {
         const processedObjects: Cell[] = [];
@@ -452,8 +664,8 @@ class Map {
             y: input.y,
             objects: processedObjects,
             globalOverride: {
-                backgroundColor: input.globalOverride?.backgroundColor || "#FFF",
-                zoomLevel: input.globalOverride?.zoomLevel || 1,
+                backgroundColor: input.globalOverride?.backgroundColor || DEFAULT_MAP_BACKGROUND_COLOR,
+                zoomLevel: input.globalOverride?.zoomLevel || DEFAULT_ZOOM_LEVEL,
                 cellStyleOverride: {
                     seat: input.globalOverride?.cellStyleOverride?.seat,
                     aisle: input.globalOverride?.cellStyleOverride?.aisle,
@@ -479,7 +691,22 @@ class Map {
         this.ctx = this.canvas.getContext("2d", { alpha: false });
 
         this.collisions = new CollisionManager(this);
-        this.editMenu = new EditMenuManager(this, editMenuId);
+
+        if (this.mode === "edit") {
+            if (!editMenuId) {
+                throw new Error("Edit mode requires an edit menu ID to be provided.");
+            }
+
+            const el = document.getElementById(editMenuId);
+
+            if (!el) {
+                throw new Error(`Edit menu element with ID ${editMenuId} not found.`);
+            }
+
+            el.style.display = "block";
+
+            this.editMenu = new EditMenu(this, editMenuId);
+        }
 
         this.canvas.addEventListener("wheel", (event) => {
             if (event.deltaY > 0) {
@@ -543,6 +770,10 @@ class Map {
                 this.state.selectedCell = -1;
             } else {
                 this.state.selectedCell = collision.cellIndex;
+            }
+
+            if (this.mode === "edit") {
+                this.editMenu?.selectCell(this.state.selectedCell);
             }
 
             this.render();
@@ -838,6 +1069,12 @@ class Map {
         }
 
         this.collisions.registerPotentialCollisions(collisions);
+    }
+
+    getSpecifiedCellStyle(cellIndex: number): CellStyleOverride {
+        const cell = this.mapLayout.objects[cellIndex];
+
+        return cell?.styleOverride || {};
     }
 
     getCellStyle(cell: Cell, hoverState: boolean, selectedState: boolean): { backgroundColor: string, borderColor: string, borderWidth: number, text: string, opacity: number } {
