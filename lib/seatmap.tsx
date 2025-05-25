@@ -2,33 +2,38 @@
 
 import { useEffect } from "react";
 
-export default function Seatmap({ className }: { className: string }) {
+export default function Seatmap({ className, editMenuClassName }: { className: string, editMenuClassName: string }) {
     useEffect(() => {
         const map = new Map("edit", "seatmap_area", {
             x: 76,
             y: 33,
             objects: [
                 "1000",
-                { id: "1", name: "1", type: "seat", styleOverride: {} },
-                { id: "2", name: "2", type: "seat", styleOverride: {} },
-                { id: "3", name: "3", type: "seat", styleOverride: {} },
-                { id: "5", name: "4", type: "seat", styleOverride: {} },
-                { id: "6", name: "1", type: "seat", styleOverride: {} },
-                { id: "7", name: "2", type: "seat", styleOverride: {} },
-                { id: "8", name: "3", type: "seat", styleOverride: {} },
-                { id: "9", name: "4", type: "seat", styleOverride: {} },
-                { id: "10", name: "1", type: "seat", styleOverride: {} },
-                { id: "11", name: "2", type: "seat", styleOverride: {} },
-                { id: "12", name: "3", type: "seat", styleOverride: {} },
-                { id: "13", name: "4", type: "seat", styleOverride: {} },
+                { id: "1", name: "1", type: "seat" },
+                { id: "2", name: "2", type: "aisle" },
+                { id: "3", name: "3", type: "wall" },
+                { id: "5", name: "4", type: "door" },
+                { id: "6", name: "1", type: "custom" },
+                { id: "7", name: "2", type: "seat" },
+                { id: "8", name: "3", type: "aisle" },
+                { id: "9", name: "4", type: "wall" },
+                { id: "10", name: "1", type: "door" },
+                { id: "11", name: "2", type: "custom" },
+                { id: "12", name: "3", type: "seat" },
+                { id: "13", name: "4", type: "aisle" },
                 "1496"
             ]
         });
     })
     return (
-        <canvas tabIndex={1} className={className} id="seatmap_area">
-            test
-        </canvas>
+        <>
+            <canvas tabIndex={1} className={className} id="seatmap_area">
+                Javascript is required to render the seatmap.
+            </canvas>
+            <div className={"absolute bottom-0 right-0 bg-black opacity-30 hidden " + editMenuClassName}>
+
+            </div>
+        </>
     );
 }
 
@@ -37,28 +42,173 @@ const MAX_ZOOM = 6; // Maximum zoom level
 const MIN_ZOOM = 0.8; // Minimum zoom level
 const ZOOM_LEVELS = [0.8, 1, 1.2, 1.5, 2, 3, 4, 5, 6]; // Predefined zoom levels
 
+const DEFAULT_MAP_BACKGROUND_COLOR = "#000";
+const DEFAULT_ZOOM_LEVEL: PossibleZoomLevels = 1;
+
+const DEFAULT_CELL_STYLES: Record<SeatType, CellStyleOverride> = {
+    seat: {
+        backgroundColor: "#0F0",
+        borderColor: "#000",
+        borderWidth: 1,
+        text: "",
+        opacity: 1,
+        hoverOverride: {
+            backgroundColor: "#0F0",
+            borderColor: "#000",
+            borderWidth: 2,
+            text: "",
+            opacity: 0.5,
+        },
+        selectedOverride: {
+            backgroundColor: "#0F0",
+            borderColor: "#000",
+            borderWidth: 2,
+            text: "",
+            opacity: 0.2,
+        }
+    },
+    aisle: {
+        backgroundColor: "#FFF",
+        borderColor: "#000",
+        borderWidth: 1,
+        text: "",
+        opacity: 1,
+        hoverOverride: {
+            backgroundColor: "#FFF",
+            borderColor: "#000",
+            borderWidth: 2,
+            text: "",
+            opacity: 1,
+        },
+        selectedOverride: {
+            backgroundColor: "#FFF",
+            borderColor: "#000",
+            borderWidth: 2,
+            text: "",
+            opacity: 1,
+        }
+    },
+    wall: {
+        backgroundColor: "#CCC",
+        borderColor: "#000",
+        borderWidth: 1,
+        text: "2",
+        opacity: 1,
+        hoverOverride: {
+            backgroundColor: "#CCC",
+            borderColor: "#000",
+            borderWidth: 2,
+            text: "1",
+            opacity: 1,
+        },
+        selectedOverride: {
+            backgroundColor: "#CCC",
+            borderColor: "#000",
+            borderWidth: 2,
+            text: "1",
+            opacity: 1,
+        }
+    },
+    door: {
+        backgroundColor: "#F00",
+        borderColor: "#000",
+        borderWidth: 1,
+        text: "",
+        opacity: 1,
+        hoverOverride: {
+            backgroundColor: "#F00",
+            borderColor: "#000",
+            borderWidth: 2,
+            text: "",
+            opacity: 0.6,
+        },
+        selectedOverride: {
+            backgroundColor: "#F00",
+            borderColor: "#000",
+            borderWidth: 2,
+            text: "",
+            opacity: 0.6,
+        }
+    },
+    custom: {
+        backgroundColor: "#FFF",
+        borderColor: "#000",
+        borderWidth: 1,
+        text: "",
+        opacity: 1,
+        hoverOverride: {
+            backgroundColor: "#FFF",
+            borderColor: "#000",
+            borderWidth: 2,
+            text: "",
+            opacity: 1,
+        },
+        selectedOverride: {
+            backgroundColor: "#FFF",
+            borderColor: "#000",
+            borderWidth: 2,
+            text: "",
+            opacity: 1,
+        }
+    }
+}
+
+export type SeatType = "seat" | "aisle" | "wall" | "door" | "custom";
+
 export type Cell = {
     id: string;
     name: string;
-    type: "seat" | "aisle" | "wall" | "door" | "custom";
-    styleOverride: {
-        backgroundColor?: string;
-        borderColor?: string;
-        borderWidth?: number;
-        text?: string;
-    }
+    type: SeatType;
+    styleOverride?: CellStyleOverride
 } | null;
+
+export type CellStyleOverrideNoHover = {
+    backgroundColor?: string;
+    borderColor?: string;
+    borderWidth?: number;
+    text?: string;
+    opacity?: number;
+}
+
+export type CellStyleOverride = CellStyleOverrideNoHover & {
+    hoverOverride?: CellStyleOverrideNoHover,
+    selectedOverride?: CellStyleOverrideNoHover
+}
+
+export type PossibleZoomLevels = 0.8 | 1 | 1.2 | 1.5 | 2 | 3 | 4 | 5 | 6;
 
 export type MapLayoutInput = {
     x: number;
     y: number;
     objects: (Cell | `${number}`)[]; // putting an Int will create the Ints amount of null cells
+    globalOverride?: {
+        backgroundColor?: string;
+        zoomLevel?: PossibleZoomLevels;
+        cellStyleOverride?: {
+            seat?: CellStyleOverride
+            aisle?: CellStyleOverride
+            wall?: CellStyleOverride
+            door?: CellStyleOverride
+            custom?: CellStyleOverride
+        }
+    }
 };
 
 export type MapLayout = {
     x: number;
     y: number;
     objects: Cell[];
+    globalOverride: {
+        backgroundColor: string;
+        zoomLevel: PossibleZoomLevels;
+        cellStyleOverride: {
+            seat?: CellStyleOverride
+            aisle?: CellStyleOverride
+            wall?: CellStyleOverride
+            door?: CellStyleOverride
+            custom?: CellStyleOverride
+        }
+    }
 };
 
 export type Collision = {
@@ -71,16 +221,28 @@ export type Collision = {
 
 export type MapMode = "view" | "edit";
 
+class EditMenuManager {
+    map: Map;
+
+    constructor(map: Map) {
+        this.map = map;
+    }
+
+    render() {
+        // Implement rendering logic for the edit menu
+    }
+}
+
 class CollisionManager {
     collisions: {
         potentialCollisions: Collision[];
         activeMouseCollisions: Collision[];
         activeMouseHoverCollisions: Collision[];
     } = {
-        potentialCollisions: [],
-        activeMouseCollisions: [],
-        activeMouseHoverCollisions: []
-    }
+            potentialCollisions: [],
+            activeMouseCollisions: [],
+            activeMouseHoverCollisions: []
+        }
 
     map: Map;
 
@@ -88,9 +250,9 @@ class CollisionManager {
         click: ((collission: Collision) => void)[],
         hover: ((collission: Collision) => void)[]
     } = {
-        click: [],
-        hover: []
-    }
+            click: [],
+            hover: []
+        }
 
     constructor(map: Map) {
         this.map = map;
@@ -136,6 +298,18 @@ class CollisionManager {
             for (const collision of this.collisions.activeMouseHoverCollisions) {
                 for (const listener of this.listeners.hover) {
                     listener(collision);
+                }
+            }
+
+            if (this.collisions.activeMouseHoverCollisions.length === 0) {
+                for (const listener of this.listeners.hover) {
+                    listener({
+                        x: -1,
+                        y: -1,
+                        width: 0,
+                        height: 0,
+                        cellIndex: -1
+                    });
                 }
             }
         });
@@ -204,11 +378,11 @@ class Map {
         mouseY: number;
         mouseDown: boolean;
     } = {
-        keysPressed: [],
-        mouseX: 0,
-        mouseY: 0,
-        mouseDown: false
-    }
+            keysPressed: [],
+            mouseX: 0,
+            mouseY: 0,
+            mouseDown: false
+        }
 
     collisions: CollisionManager;
 
@@ -236,7 +410,18 @@ class Map {
         return {
             x: input.x,
             y: input.y,
-            objects: processedObjects
+            objects: processedObjects,
+            globalOverride: {
+                backgroundColor: input.globalOverride?.backgroundColor || "#FFF",
+                zoomLevel: input.globalOverride?.zoomLevel || 1,
+                cellStyleOverride: {
+                    seat: input.globalOverride?.cellStyleOverride?.seat,
+                    aisle: input.globalOverride?.cellStyleOverride?.aisle,
+                    wall: input.globalOverride?.cellStyleOverride?.wall,
+                    door: input.globalOverride?.cellStyleOverride?.door,
+                    custom: input.globalOverride?.cellStyleOverride?.custom
+                }
+            }
         } as MapLayout;
     }
 
@@ -251,11 +436,9 @@ class Map {
         this.canvas.width = this.canvas.offsetWidth;
         this.canvas.height = this.canvas.offsetHeight;
 
-        this.ctx = this.canvas.getContext("2d");
+        this.ctx = this.canvas.getContext("2d", { alpha: false });
 
         this.collisions = new CollisionManager(this);
-
-        this.render();
 
         this.canvas.addEventListener("wheel", (event) => {
             if (event.deltaY > 0) {
@@ -281,6 +464,8 @@ class Map {
             if (this.controller.keysPressed.includes(event.key)) return;
 
             this.controller.keysPressed.push(event.key);
+
+            this.runKeyboardControls();
         });
 
         this.canvas.addEventListener("keyup", (event) => {
@@ -289,34 +474,12 @@ class Map {
             if (index > -1) {
                 this.controller.keysPressed.splice(index, 1);
             }
+
+            this.runKeyboardControls();
         })
 
         setInterval(() => {
-            if (this.controller.keysPressed.length > 0) {
-                let multiplier = this.controller.keysPressed.includes("Shift") ? 3 : 1;
-
-                if ((this.controller.keysPressed.includes("ArrowUp") || this.controller.keysPressed.includes("ArrowDown")) 
-                && (this.controller.keysPressed.includes("ArrowLeft") || this.controller.keysPressed.includes("ArrowRight"))
-                && !(this.controller.keysPressed.includes("ArrowUp") && this.controller.keysPressed.includes("ArrowDown"))
-                && !(this.controller.keysPressed.includes("ArrowLeft") && this.controller.keysPressed.includes("ArrowRight"))) {
-                    multiplier /= Math.sqrt(2); // Diagonal movement adjustment when using only two arrow keys that make a diagonal, based on Pythagorean theorem
-                }
-
-                if (this.controller.keysPressed.includes("ArrowUp")) {
-                    this.camera.y -= 10 * multiplier;
-                }
-                if (this.controller.keysPressed.includes("ArrowDown")) {
-                    this.camera.y += 10 * multiplier;
-                }
-                if (this.controller.keysPressed.includes("ArrowLeft")) {
-                    this.camera.x -= 10 * multiplier;
-                }
-                if (this.controller.keysPressed.includes("ArrowRight")) {
-                    this.camera.x += 10 * multiplier;
-                }
-
-                this.keepCameraConstraints();
-            }
+            this.runKeyboardControls();
         }, 32);
 
         this.canvas.addEventListener("touchstart", this.handleTouchStartDecorator(() => this));
@@ -333,6 +496,18 @@ class Map {
 
             this.render();
         });
+
+        this.collisions.addEventListener("click", (collision) => {
+            if (this.selectedCell === collision.cellIndex) {
+                this.selectedCell = -1;
+            } else {
+                this.selectedCell = collision.cellIndex;
+            }
+
+            this.render();
+        })
+
+        this.render();
     }
 
     handleTouchStartDecorator(mapGetter: () => Map) {
@@ -430,17 +605,51 @@ class Map {
         }
     }
 
+    runKeyboardControls() {
+        if (this.controller.keysPressed.length > 0) {
+            let multiplier = this.controller.keysPressed.includes("Shift") ? 3 : 1;
+
+            if ((this.controller.keysPressed.includes("ArrowUp") || this.controller.keysPressed.includes("ArrowDown"))
+                && (this.controller.keysPressed.includes("ArrowLeft") || this.controller.keysPressed.includes("ArrowRight"))
+                && !(this.controller.keysPressed.includes("ArrowUp") && this.controller.keysPressed.includes("ArrowDown"))
+                && !(this.controller.keysPressed.includes("ArrowLeft") && this.controller.keysPressed.includes("ArrowRight"))) {
+                multiplier /= Math.sqrt(2); // Diagonal movement adjustment when using only two arrow keys that make a diagonal, based on Pythagorean theorem
+            }
+
+            if (this.controller.keysPressed.includes("ArrowUp")) {
+                this.camera.y -= 10 * multiplier;
+            }
+            if (this.controller.keysPressed.includes("ArrowDown")) {
+                this.camera.y += 10 * multiplier;
+            }
+            if (this.controller.keysPressed.includes("ArrowLeft")) {
+                this.camera.x -= 10 * multiplier;
+            }
+            if (this.controller.keysPressed.includes("ArrowRight")) {
+                this.camera.x += 10 * multiplier;
+            }
+
+            this.keepCameraConstraints();
+        }
+    }
+
     keepCameraConstraints() {
-        if (this.camera.y > ((this.mapHeight / 2) * this.camera.zoom)) {
-            this.camera.y = (this.mapHeight / 2) * this.camera.zoom;
-        } else if (this.camera.y < (0 - ((this.mapHeight / 2) * this.camera.zoom))) {
-            this.camera.y = 0 - ((this.mapHeight / 2) * this.camera.zoom);
+        const maxY = (this.mapHeight) - (this.canvas.height / 2);
+        const minY = 0 - (this.canvas.height / 2);
+
+        if (this.camera.y > maxY) {
+            this.camera.y = maxY;
+        } else if (this.camera.y < minY) {
+            this.camera.y = minY;
         }
 
-        if (this.camera.x > ((this.mapWidth / 2) * this.camera.zoom)) {
-            this.camera.x = (this.mapWidth / 2) * this.camera.zoom;
-        } else if (this.camera.x < (0 - ((this.mapWidth / 2) * this.camera.zoom))) {
-            this.camera.x = 0 - ((this.mapWidth / 2) * this.camera.zoom);
+        const maxX = (this.mapWidth) - (this.canvas.width / 2);
+        const minX = 0 - (this.canvas.width / 2);
+
+        if (this.camera.x > maxX) {
+            this.camera.x = maxX;
+        } else if (this.camera.x < minX) {
+            this.camera.x = minX;
         }
 
         this.render();
@@ -456,6 +665,9 @@ class Map {
         const renderedCellSize = CELL_SIZE * this.camera.zoom;
         const columnsAmount = this.mapLayout.x;
         const rowsAmount = this.mapLayout.y;
+
+        const zoomAdjustedCameraXPos = this.camera.x * this.camera.zoom;
+        const zoomAdjustedCameraYPos = this.camera.y * this.camera.zoom;
 
         let marginX = 0;
         let marginY = 0;
@@ -474,14 +686,14 @@ class Map {
 
         for (let x = 1; x < (columnsAmount + 1); x++) {
             if (this.mode === "edit") {
-                const xPos = -(renderedCellSize - marginX) + x * renderedCellSize - this.camera.x;
-                const yPos = -(renderedCellSize - marginY) - this.camera.y;
+                const xPos = -(renderedCellSize - marginX) + x * renderedCellSize - zoomAdjustedCameraXPos;
+                const yPos = -(renderedCellSize - marginY) - zoomAdjustedCameraYPos;
 
                 this.ctx.strokeStyle = "#0FF";
                 this.ctx.lineWidth = 0.5 * this.camera.zoom;
                 this.ctx.strokeRect(xPos, yPos, renderedCellSize, renderedCellSize);
 
-                const yPos2 = -(renderedCellSize - marginY) - this.camera.y + renderedCellSize * (rowsAmount + 1);
+                const yPos2 = -(renderedCellSize - marginY) - zoomAdjustedCameraYPos + renderedCellSize * (rowsAmount + 1);
 
                 this.ctx.strokeStyle = "#0FF";
                 this.ctx.lineWidth = 0.5 * this.camera.zoom;
@@ -491,14 +703,14 @@ class Map {
 
         for (let y = 0; y < (rowsAmount); y++) {
             if (this.mode === "edit") {
-                const xPos = -(renderedCellSize - marginX) - this.camera.x;
-                const yPos = -(renderedCellSize - marginY) + y * renderedCellSize - this.camera.y + renderedCellSize;
+                const xPos = -(renderedCellSize - marginX) - zoomAdjustedCameraXPos;
+                const yPos = -(renderedCellSize - marginY) + y * renderedCellSize - zoomAdjustedCameraYPos + renderedCellSize;
 
                 this.ctx.strokeStyle = "#0FF";
                 this.ctx.lineWidth = 0.5 * this.camera.zoom;
                 this.ctx.strokeRect(xPos, yPos, renderedCellSize, renderedCellSize);
 
-                const xPos2 = -(renderedCellSize - marginX) - this.camera.x + renderedCellSize * (columnsAmount + 1);
+                const xPos2 = -(renderedCellSize - marginX) - zoomAdjustedCameraXPos + renderedCellSize * (columnsAmount + 1);
 
                 this.ctx.strokeStyle = "#0FF";
                 this.ctx.lineWidth = 0.5 * this.camera.zoom;
@@ -511,8 +723,8 @@ class Map {
 
                 if (!cell) {
                     if (this.mode === "edit") {
-                        const xPos = x * renderedCellSize + marginX - this.camera.x;
-                        const yPos = y * renderedCellSize + marginY - this.camera.y;
+                        const xPos = x * renderedCellSize + marginX - zoomAdjustedCameraXPos;
+                        const yPos = y * renderedCellSize + marginY - zoomAdjustedCameraYPos;
 
                         collisions.push({
                             x: xPos,
@@ -522,17 +734,30 @@ class Map {
                             cellIndex: cellIndex
                         });
 
+                        this.ctx.globalAlpha = 1;
+
                         this.ctx.strokeStyle = "#CCC";
                         this.ctx.lineWidth = 0.5 * this.camera.zoom;
                         this.ctx.strokeRect(xPos, yPos, renderedCellSize, renderedCellSize);
+
+                        this.ctx.globalAlpha = 0.4;
+
+                        if (this.selectedCell === cellIndex) {
+                            this.ctx.fillStyle = "lightgreen";
+                            this.ctx.fillRect(xPos, yPos, renderedCellSize, renderedCellSize);
+                        } else if (this.hoveredCell === cellIndex) {
+                            this.ctx.fillStyle = "lightblue";
+                            this.ctx.fillRect(xPos, yPos, renderedCellSize, renderedCellSize);
+                        }
                     }
+
                     continue;
                 };
 
-                const cellStyle = this.getCellStyle(cell);
+                const { backgroundColor, borderColor, borderWidth, text, opacity } = this.getCellStyle(cell, this.hoveredCell === cellIndex, this.selectedCell === cellIndex);
 
-                const xPos = x * renderedCellSize + marginX - this.camera.x;
-                const yPos = y * renderedCellSize + marginY - this.camera.y;
+                const xPos = x * renderedCellSize + marginX - zoomAdjustedCameraXPos;
+                const yPos = y * renderedCellSize + marginY - zoomAdjustedCameraYPos;
 
                 // Check if the cell is within the visible window adjusted for zoom
                 if (xPos + renderedCellSize < -visibleWindowTolerance.x || xPos > this.canvas.width + visibleWindowTolerance.x ||
@@ -548,17 +773,24 @@ class Map {
                     cellIndex: cellIndex
                 });
 
-                this.ctx.strokeStyle = cellStyle.borderColor;
-                this.ctx.lineWidth = cellStyle.borderWidth * this.camera.zoom * (this.hoveredCell === cellIndex ? 5 : 1);
+                this.ctx.globalAlpha = opacity;
+
+                this.ctx.strokeStyle = borderColor;
+                this.ctx.lineWidth = borderWidth * this.camera.zoom;
                 this.ctx.strokeRect(xPos, yPos, renderedCellSize, renderedCellSize);
 
-                this.ctx.fillStyle = cellStyle.backgroundColor;
+                this.ctx.fillStyle = backgroundColor;
                 this.ctx.fillRect(xPos, yPos, renderedCellSize, renderedCellSize);
 
-                if (cellStyle.text) {
+                if (text) {
                     this.ctx.fillStyle = "#000";
                     this.ctx.font = `${12 * this.camera.zoom}px Arial`;
-                    this.ctx.fillText(cellStyle.text, xPos + 5, yPos + 15);
+                    const textMeasurements = this.ctx.measureText(text);
+                    const textWidth = textMeasurements.actualBoundingBoxRight - textMeasurements.actualBoundingBoxLeft;
+                    const textHeight = textMeasurements.actualBoundingBoxAscent + textMeasurements.actualBoundingBoxDescent;
+                    const textXPos = xPos + (renderedCellSize / 2) - (textWidth / 2);
+                    const textYPos = yPos + (renderedCellSize / 2) + (textHeight / 2);
+                    this.ctx.fillText(text, textXPos, textYPos);
                 }
             }
         }
@@ -566,22 +798,24 @@ class Map {
         this.collisions.registerPotentialCollisions(collisions);
     }
 
-    getCellStyle(cell: Cell): { backgroundColor: string, borderColor: string, borderWidth: number, text: string } {
-        let style = {
-            backgroundColor: "#FFF",
-            borderColor: "#000",
-            borderWidth: 1,
-            text: ""
-        }
-
+    getCellStyle(cell: Cell, hoverState: boolean, selectedState: boolean): { backgroundColor: string, borderColor: string, borderWidth: number, text: string, opacity: number } {
         if (cell === null) {
-            return style; // Return default style for empty cells, though this won't happen normally
+            return {
+                backgroundColor: "#000",
+                borderColor: "#000",
+                borderWidth: 0,
+                text: "",
+                opacity: 0
+            };
         }
 
-        if (cell.type === "seat") {
-            style.backgroundColor = "#0F0"; // Default seat color
-            style.borderColor = "#000"; // Default border color
-            style.borderWidth = 1; // Default border width
+        let style = { ...DEFAULT_CELL_STYLES[cell.type], hoverOverride: undefined } as { backgroundColor: string, borderColor: string, borderWidth: number, text: string, opacity: number }
+
+        if (hoverState) {
+            style = { ...style, ...DEFAULT_CELL_STYLES[cell.type].hoverOverride };
+        }
+        if (selectedState) {
+            style = { ...style, ...DEFAULT_CELL_STYLES[cell.type].selectedOverride };
         }
 
         return { ...style, ...cell.styleOverride };
