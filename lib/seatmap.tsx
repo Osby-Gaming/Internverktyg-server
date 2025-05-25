@@ -23,15 +23,16 @@ export default function Seatmap({ className, editMenuClassName }: { className: s
                 { id: "13", name: "4", type: "aisle" },
                 "1496"
             ]
-        });
+        }, "edit_menu");
     })
     return (
         <>
             <canvas tabIndex={1} className={className} id="seatmap_area">
                 Javascript is required to render the seatmap.
             </canvas>
-            <div className={"absolute bottom-0 right-0 bg-black opacity-30 hidden " + editMenuClassName}>
-
+            <div className={"absolute bottom-0 right-0 bg-[rgba(0,0,0,0.6)] " + editMenuClassName} id="edit_menu">
+                <input tabIndex={2} type="text" className="opacity-0 w-0 h-0 p-0" />
+                <canvas tabIndex={3} className="w-full h-full absolute bottom-0 right-0"></canvas>
             </div>
         </>
     );
@@ -223,13 +224,46 @@ export type MapMode = "view" | "edit";
 
 class EditMenuManager {
     map: Map;
+    canvas: HTMLCanvasElement | null = null;
+    ctx: CanvasRenderingContext2D | null = null;
+    input: HTMLInputElement | null = null;
 
-    constructor(map: Map) {
+    constructor(map: Map, editMenuId?: string) {
         this.map = map;
+
+        if (editMenuId) {
+            this.register(editMenuId);
+        }
+    }
+
+    register(editMenuId: string) {
+        this.canvas = document.querySelector(`#${editMenuId} > canvas`);
+        if (!this.canvas) {
+            throw new Error(`Canvas element for ID ${editMenuId} not found.`);
+        }
+
+        this.canvas.width = this.canvas.offsetWidth;
+        this.canvas.height = this.canvas.offsetHeight;
+
+        this.ctx = this.canvas.getContext("2d");
+
+        this.input = document.querySelector(`#${editMenuId} > input`);
+        if (!this.input) {
+            throw new Error(`Input element for ID ${editMenuId} not found.`);
+        }
+
+        this.render();
     }
 
     render() {
-        // Implement rendering logic for the edit menu
+        if (!this.ctx || !this.canvas || !this.input) return;
+
+        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.ctx.fillStyle = "#FFF";
+        this.ctx.font = `20px Arial`;
+        this.ctx.fillText("Edit Menu", 10, 30);
+        this.ctx.fillText("Click on a cell to edit it", 10, 60);
     }
 }
 
@@ -385,6 +419,7 @@ class Map {
         }
 
     collisions: CollisionManager;
+    editMenu: EditMenuManager;
 
     ongoingTouches: { identifier: number, pageX: number, pageY: number }[] = [];
 
@@ -430,7 +465,7 @@ class Map {
         } as MapLayout;
     }
 
-    constructor(mode: MapMode, canvasId: string, mapLayout: MapLayoutInput) {
+    constructor(mode: MapMode, canvasId: string, mapLayout: MapLayoutInput, editMenuId?: string) {
         this.mode = mode;
 
         this.mapLayout = Map.inputProcessing(mapLayout);
@@ -444,6 +479,7 @@ class Map {
         this.ctx = this.canvas.getContext("2d", { alpha: false });
 
         this.collisions = new CollisionManager(this);
+        this.editMenu = new EditMenuManager(this, editMenuId);
 
         this.canvas.addEventListener("wheel", (event) => {
             if (event.deltaY > 0) {
