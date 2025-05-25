@@ -388,8 +388,13 @@ class Map {
 
     ongoingTouches: { identifier: number, pageX: number, pageY: number }[] = [];
 
-    hoveredCell: number = -1;
-    selectedCell: number = -1;
+    state: {
+        hoveredCell: number
+        selectedCell: number
+    } = {
+        hoveredCell: -1,
+        selectedCell: -1
+    }
 
     static inputProcessing(input: MapLayoutInput) {
         const processedObjects: Cell[] = [];
@@ -488,20 +493,20 @@ class Map {
         this.canvas.addEventListener("touchmove", this.handleTouchMoveDecorator(() => this));
 
         this.collisions.addEventListener("hover", (collision) => {
-            if (this.hoveredCell === collision.cellIndex) {
+            if (this.state.hoveredCell === collision.cellIndex) {
                 return;
             };
 
-            this.hoveredCell = collision.cellIndex;
+            this.state.hoveredCell = collision.cellIndex;
 
             this.render();
         });
 
         this.collisions.addEventListener("click", (collision) => {
-            if (this.selectedCell === collision.cellIndex) {
-                this.selectedCell = -1;
+            if (this.state.selectedCell === collision.cellIndex) {
+                this.state.selectedCell = -1;
             } else {
-                this.selectedCell = collision.cellIndex;
+                this.state.selectedCell = collision.cellIndex;
             }
 
             this.render();
@@ -685,6 +690,7 @@ class Map {
         };
 
         for (let x = 1; x < (columnsAmount + 1); x++) {
+            this.ctx.globalAlpha = 1;
             if (this.mode === "edit") {
                 const xPos = -(renderedCellSize - marginX) + x * renderedCellSize - zoomAdjustedCameraXPos;
                 const yPos = -(renderedCellSize - marginY) - zoomAdjustedCameraYPos;
@@ -702,6 +708,7 @@ class Map {
         }
 
         for (let y = 0; y < (rowsAmount); y++) {
+            this.ctx.globalAlpha = 1;
             if (this.mode === "edit") {
                 const xPos = -(renderedCellSize - marginX) - zoomAdjustedCameraXPos;
                 const yPos = -(renderedCellSize - marginY) + y * renderedCellSize - zoomAdjustedCameraYPos + renderedCellSize;
@@ -718,6 +725,7 @@ class Map {
             }
 
             for (let x = 0; x < columnsAmount; x++) {
+                this.ctx.globalAlpha = 1;
                 const cellIndex = y * columnsAmount + x;
                 const cell = this.mapLayout.objects[cellIndex];
 
@@ -734,18 +742,16 @@ class Map {
                             cellIndex: cellIndex
                         });
 
-                        this.ctx.globalAlpha = 1;
-
                         this.ctx.strokeStyle = "#CCC";
                         this.ctx.lineWidth = 0.5 * this.camera.zoom;
                         this.ctx.strokeRect(xPos, yPos, renderedCellSize, renderedCellSize);
 
                         this.ctx.globalAlpha = 0.4;
 
-                        if (this.selectedCell === cellIndex) {
+                        if (this.state.selectedCell === cellIndex) {
                             this.ctx.fillStyle = "lightgreen";
                             this.ctx.fillRect(xPos, yPos, renderedCellSize, renderedCellSize);
-                        } else if (this.hoveredCell === cellIndex) {
+                        } else if (this.state.hoveredCell === cellIndex) {
                             this.ctx.fillStyle = "lightblue";
                             this.ctx.fillRect(xPos, yPos, renderedCellSize, renderedCellSize);
                         }
@@ -754,7 +760,7 @@ class Map {
                     continue;
                 };
 
-                const { backgroundColor, borderColor, borderWidth, text, opacity } = this.getCellStyle(cell, this.hoveredCell === cellIndex, this.selectedCell === cellIndex);
+                const { backgroundColor, borderColor, borderWidth, text, opacity } = this.getCellStyle(cell, this.state.hoveredCell === cellIndex, this.state.selectedCell === cellIndex);
 
                 const xPos = x * renderedCellSize + marginX - zoomAdjustedCameraXPos;
                 const yPos = y * renderedCellSize + marginY - zoomAdjustedCameraYPos;
