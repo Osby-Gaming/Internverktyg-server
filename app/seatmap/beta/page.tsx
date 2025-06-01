@@ -1,4 +1,4 @@
-import Seatmap from "@/lib/seatmap";
+import Seatmap from "@/lib/seatmap/react";
 
 export default async function Page() {
     return (

@@ -160,7 +160,7 @@ const EDITMENU_LABELS: Record<string, string> = {
     borderWidth: "Border Width",
     text: "Text",
     opacity: "Opacity",
-    default_text_1: "Click on a cell to edit it"
+    default_text1: "Click on a cell to edit it"
 };
 
 const CELL_STYLE_KEYS = Object.keys(EDITMENU_LABELS).slice(0, 5);
@@ -231,6 +231,21 @@ export type Collision = {
     cellIndex: number;
 }
 
+export type EditMenuState = {
+    input: {
+        property: keyof CellStyleOverridePure | null;
+        value: string;
+    },
+    animations: {
+        blinkingCursor: {
+            lastTick: number;
+            lastState: "visible" | "hidden";
+            interval: number;
+        }
+    },
+    selectedInput: number
+}
+
 export type EditMenuElement = {
     type: "input" | "button" | "label" | "select";
     label: string;
@@ -240,6 +255,23 @@ export type EditMenuElement = {
 
 export type MapMode = "view" | "edit";
 
+class FPSCounter {
+    public frameCount: number = 0;
+    private frames: number[] = [];
+
+    public tick() {
+        const now = performance.now();
+        this.frames.push(now);
+
+        // Remove frames older than 1 second
+        while (this.frames.length > 0 && this.frames[0] <= now - 1000) {
+            this.frames.shift();
+        }
+
+        this.frameCount = this.frames.length;
+    }
+}
+
 class EditMenu {
     map: Map;
 
@@ -248,6 +280,8 @@ class EditMenu {
     input: HTMLInputElement;
 
     collisions: CollisionManager;
+
+    fpsCounter: FPSCounter = new FPSCounter();
 
     controller: {
         mouseX: number;
@@ -259,20 +293,7 @@ class EditMenu {
             mouseDown: false
         }
 
-    state: {
-        input: {
-            property: keyof CellStyleOverridePure | null;
-            value: string;
-        },
-        animations: {
-            blinkingCursor: {
-                lastTick: number;
-                lastState: "visible" | "hidden";
-                interval: number;
-            }
-        },
-        selectedInput: number
-    } = {
+    state: EditMenuState = {
             input: {
                 property: null,
                 value: ""
@@ -286,6 +307,8 @@ class EditMenu {
             },
             selectedInput: -1
         }
+
+    lastFrameState: EditMenuState = JSON.parse(JSON.stringify(this.state));
 
     elements: EditMenuElement[] = [];
 
@@ -312,6 +335,20 @@ class EditMenu {
         }
 
         this.input = input as HTMLInputElement;
+
+        this.input.addEventListener("input", (event) => {
+            this.state.input.value = (event.target as HTMLInputElement).value;
+
+            if (this.state.input.property) {
+                const element = this.elements[this.state.selectedInput];
+
+                if (element) {
+                    element.value = this.state.input.value;
+                }
+            }
+
+            this.render();
+        })
 
         this.collisions.addEventListener("click", (collision) => {
             if (collision.cellIndex < 0 || collision.cellIndex >= this.elements.length) {
@@ -346,15 +383,15 @@ class EditMenu {
                 }
             }
 
-            this.render();
+            this.renderIfStateChanged();
         }, 50)
 
-        this.setDefaultElements();
+        this.unSelectCell();
 
         this.render();
     }
 
-    setDefaultElements() {
+    unSelectCell() {
         this.elements = [];
 
         this.elements.push({
@@ -362,15 +399,19 @@ class EditMenu {
             label: "default_text1"
         })
 
+        this.state.selectedInput = -1;
+        this.state.input.property = null;
+        this.state.input.value = "";
+        this.input.value = "";
+
         this.render();
     }
 
     selectCell(cellIndex: number) {
-        console.log(cellIndex);
         const elements: EditMenuElement[] = [];
 
         if (cellIndex < 0 || cellIndex >= this.map.mapLayout.objects.length) {
-            this.setDefaultElements();
+            this.unSelectCell();
 
             return;
         }
@@ -396,8 +437,21 @@ class EditMenu {
         this.render();
     }
 
+    renderIfStateChanged() {
+        if (!this.ctx || !this.canvas || !this.input) return;
+
+        if (JSON.stringify(this.state) === JSON.stringify(this.lastFrameState)) {
+            return;
+        }
+
+        this.render();
+    }
+
     render() {
         if (!this.ctx || !this.canvas || !this.input) return;
+
+        this.fpsCounter.tick();
+        this.lastFrameState = JSON.parse(JSON.stringify(this.state));
 
         const collisions: Collision[] = [];
 
@@ -409,6 +463,11 @@ class EditMenu {
         const inputPadding = 5;
 
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+        this.ctx.fillStyle = "#0F0";
+        const fpsTextMeasurements = this.ctx.measureText(this.fpsCounter.frameCount.toString());
+        const fpsTextWidth = fpsTextMeasurements.width;
+        this.ctx.fillText(this.fpsCounter.frameCount.toString(), this.canvas.width - fpsTextWidth - 10, 20);
 
         this.ctx.fillStyle = "#FFF";
         this.ctx.font = `20px Arial`;
@@ -448,7 +507,7 @@ class EditMenu {
                     const textMeasurements = this.ctx.measureText(element.value);
                     const textHeight = textMeasurements.actualBoundingBoxAscent + textMeasurements.actualBoundingBoxDescent;
 
-                    this.ctx.fillText(element.value, cursorMarginX, lastElementYEnd + (inputHeight / 2) - (textHeight / 2));
+                    this.ctx.fillText(element.value, cursorMarginX, lastElementYEnd + (inputHeight / 2) + (textHeight / 2));
 
                     cursorMarginX += textMeasurements.width;
                 }
@@ -456,8 +515,8 @@ class EditMenu {
                 if (this.state.selectedInput === i && this.state.animations.blinkingCursor.lastState === "visible") {
                     this.ctx.fillStyle = "#000";
                     this.ctx.beginPath();
-                    this.ctx.moveTo(cursorMarginX + 10, lastElementYEnd + inputPadding);
-                    this.ctx.lineTo(cursorMarginX + 10, lastElementYEnd + inputHeight - inputPadding);
+                    this.ctx.moveTo(cursorMarginX, lastElementYEnd + inputPadding);
+                    this.ctx.lineTo(cursorMarginX, lastElementYEnd + inputHeight - inputPadding);
                     this.ctx.stroke();
                 }
 
