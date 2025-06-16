@@ -1,27 +1,52 @@
+import { MouseButtons } from "./data";
 import EditMenu from "./EditMenu";
 import Map from "./Map";
-import { Collision } from "./types";
+import { Collision, CollisionCallback, DragCallback } from "./types";
 
-export default class CollisionManager {
-    collisions: {
-        potentialCollisions: Collision[];
-        activeMouseCollisions: Collision[];
-        activeMouseHoverCollisions: Collision[];
-    } = {
-            potentialCollisions: [],
-            activeMouseCollisions: [],
-            activeMouseHoverCollisions: []
-        }
-
+export default class CollisionManager<ref> {
     map: Map | EditMenu;
 
+    collisions: Collision<ref>[] = [];
+    activeClickCollisions: Collision<ref>[] = [];
+    activeHoverCollisions: Collision<ref>[] = [];
+
     listeners: {
-        click: ((collission: Collision) => void)[],
-        hover: ((collission: Collision) => void)[]
+        click: CollisionCallback<ref>[],
+        hover: CollisionCallback<ref>[],
+        drag: DragCallback[];
+        dragend: DragCallback[];
     } = {
             click: [],
-            hover: []
+            hover: [],
+            drag: [],
+            dragend: []
         }
+
+    drag: {
+        start: {
+            x: number;
+            y: number;
+        },
+        latest: {
+            x: number;
+            y: number;
+        }
+    } = {
+            start: {
+                x: 0,
+                y: 0
+            },
+            latest: {
+                x: 0,
+                y: 0
+            }
+        }
+
+    mouseState: {
+        mouseButtonsDown: MouseButtons[];
+    } = {
+            mouseButtonsDown: []
+        };
 
     constructor(map: Map | EditMenu) {
         this.map = map;
@@ -30,55 +55,56 @@ export default class CollisionManager {
             event.preventDefault();
             this.map.canvas.focus();
 
-            this.map.controller.mouseX = event.offsetX;
-            this.map.controller.mouseY = event.offsetY;
-            this.map.controller.mouseDown = true;
+            const { offsetX, offsetY } = event;
 
-            this.collisions.activeMouseCollisions = this.collisions.potentialCollisions.filter(collision => {
-                return collision.x <= this.map.controller.mouseX &&
-                    collision.x + collision.width >= this.map.controller.mouseX &&
-                    collision.y <= this.map.controller.mouseY &&
-                    collision.y + collision.height >= this.map.controller.mouseY;
-            });
+            this.drag.latest.x = offsetX;
+            this.drag.latest.y = offsetY;
+            this.drag.start.x = offsetX;
+            this.drag.start.y = offsetY;
+
+            if (!this.mouseState.mouseButtonsDown.includes(event.button)) {
+                this.mouseState.mouseButtonsDown.push(event.button);
+            }
         });
 
         this.map.canvas.addEventListener("mousemove", (event) => {
             event.preventDefault();
 
-            this.map.controller.mouseX = event.offsetX;
-            this.map.controller.mouseY = event.offsetY;
+            const { offsetX, offsetY } = event;
 
-            if (this.map.controller.mouseDown) {
-                this.collisions.activeMouseCollisions = this.collisions.potentialCollisions.filter(collision => {
-                    return collision.x <= this.map.controller.mouseX &&
-                        collision.x + collision.width >= this.map.controller.mouseX &&
-                        collision.y <= this.map.controller.mouseY &&
-                        collision.y + collision.height >= this.map.controller.mouseY;
-                });
+            if (this.mouseState.mouseButtonsDown.includes(MouseButtons.LEFT)) {
+                if (offsetX !== this.drag.latest.x || offsetY !== this.drag.latest.y) {
+                    for (const listener of this.listeners.drag) {
+                        listener(offsetX - this.drag.latest.x, offsetY - this.drag.latest.y, this.mouseState.mouseButtonsDown);
+                    }
+                }
+
+                this.drag.latest.x = offsetX;
+                this.drag.latest.y = offsetY;
+            } else {
+                this.activeHoverCollisions = this.collisions.filter(collision => {
+                    return collision.x <= offsetX &&
+                        collision.x + collision.width >= offsetX &&
+                        collision.y <= offsetY &&
+                        collision.y + collision.height >= offsetY;
+                })
             }
 
-            this.collisions.activeMouseHoverCollisions = this.collisions.potentialCollisions.filter(collision => {
-                return collision.x <= this.map.controller.mouseX &&
-                    collision.x + collision.width >= this.map.controller.mouseX &&
-                    collision.y <= this.map.controller.mouseY &&
-                    collision.y + collision.height >= this.map.controller.mouseY;
-            })
-
-            for (const collision of this.collisions.activeMouseHoverCollisions) {
+            for (const collision of this.activeHoverCollisions) {
                 for (const listener of this.listeners.hover) {
-                    listener(collision);
+                    listener(collision, this.mouseState.mouseButtonsDown);
                 }
             }
 
-            if (this.collisions.activeMouseHoverCollisions.length === 0) {
+            if (this.activeHoverCollisions.length === 0) {
                 for (const listener of this.listeners.hover) {
                     listener({
                         x: -1,
                         y: -1,
                         width: 0,
                         height: 0,
-                        cellIndex: -1
-                    });
+                        reference: -1
+                    }, this.mouseState.mouseButtonsDown);
                 }
             }
         });
@@ -86,38 +112,54 @@ export default class CollisionManager {
         this.map.canvas.addEventListener("mouseup", (event) => {
             event.preventDefault();
 
-            this.map.controller.mouseX = event.offsetX;
-            this.map.controller.mouseY = event.offsetY;
-            this.map.controller.mouseDown = false;
+            const { offsetX, offsetY } = event;
 
-            for (const collision of this.collisions.activeMouseCollisions) {
+            if (offsetX === this.drag.start.x &&
+                offsetY === this.drag.start.y) {
+                this.activeClickCollisions = this.collisions.filter(collision => {
+                    return collision.x <= offsetX &&
+                        collision.x + collision.width >= offsetX &&
+                        collision.y <= offsetY &&
+                        collision.y + collision.height >= offsetY;
+                });
+            } else {
+                this.activeClickCollisions = [];
+            }
+
+            for (const collision of this.activeClickCollisions) {
                 for (const listener of this.listeners.click) {
-                    listener(collision);
+                    listener(collision, this.mouseState.mouseButtonsDown);
                 }
             }
 
-            this.collisions.activeMouseCollisions = [];
+            if (this.activeClickCollisions.length === 0) {
+                for (const listener of this.listeners.dragend) {
+                    listener(offsetX - this.drag.latest.x, offsetY - this.drag.latest.y, this.mouseState.mouseButtonsDown);
+                }
+            }
+
+            this.activeClickCollisions = [];
+
+            const buttonIndex = this.mouseState.mouseButtonsDown.indexOf(event.button);
+
+            if (buttonIndex !== -1) {
+                this.mouseState.mouseButtonsDown.splice(buttonIndex, 1);
+            }
         });
     }
 
-    addEventListener(type: "click" | "hover", callback: (collision: Collision) => void) {
+    addEventListener(type: "click" | "hover", callback: CollisionCallback<ref>): void;
+    addEventListener(type: "drag" | "dragend", callback: DragCallback): void;
+    addEventListener(type: "click" | "hover" | "drag" | "dragend", callback: CollisionCallback<ref> | DragCallback) {
         if (type in this.listeners) {
+            // @ts-expect-error
             this.listeners[type].push(callback);
         } else {
             throw new Error(`Invalid event type: ${type}`);
         }
     }
 
-    registerPotentialCollisions(collisions: Collision[]) {
-        this.collisions.potentialCollisions = collisions;
-
-        if (this.map.controller.mouseDown) {
-            this.collisions.activeMouseCollisions = this.collisions.potentialCollisions.filter(collision => {
-                return collision.x <= this.map.controller.mouseX &&
-                    collision.x + collision.width >= this.map.controller.mouseX &&
-                    collision.y <= this.map.controller.mouseY &&
-                    collision.y + collision.height >= this.map.controller.mouseY;
-            });
-        }
+    registerCollisions(collisions: Collision<ref>[]) {
+        this.collisions = collisions;
     }
 }

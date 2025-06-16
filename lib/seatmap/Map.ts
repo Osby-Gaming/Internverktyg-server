@@ -1,7 +1,8 @@
 import CollisionManager from "./CollisionManager";
-import { DEFAULT_MAP_BACKGROUND_COLOR, DEFAULT_ZOOM_LEVEL, CELL_SIZE, ZOOM_LEVELS, MIN_ZOOM, MAX_ZOOM, DEFAULT_CELL_STYLES } from "./data";
+import { DEFAULT_MAP_BACKGROUND_COLOR, DEFAULT_ZOOM_LEVEL, CELL_SIZE, ZOOM_LEVELS, MIN_ZOOM, MAX_ZOOM, DEFAULT_CELL_STYLES, MouseButtons } from "./data";
 import EditMenu from "./EditMenu";
-import { Cell, CellStyleOverride, Collision, MapLayout, MapLayoutInput, MapMode } from "./types";
+import { Cell, CellStyleOverride, Collision, MapLayout, MapLayoutInput, MapMode, MapRenderInstruction } from "./types";
+import { FPSCounter } from "./util";
 
 export default class Map {
     mode: MapMode;
@@ -24,17 +25,11 @@ export default class Map {
 
     controller: {
         keysPressed: string[];
-        mouseX: number;
-        mouseY: number;
-        mouseDown: boolean;
     } = {
-            keysPressed: [],
-            mouseX: 0,
-            mouseY: 0,
-            mouseDown: false
+            keysPressed: []
         }
 
-    collisions: CollisionManager;
+    collisions: CollisionManager<number>;
     editMenu: EditMenu | null = null;
 
     ongoingTouches: { identifier: number, pageX: number, pageY: number }[] = [];
@@ -46,6 +41,10 @@ export default class Map {
             hoveredCell: -1,
             selectedCell: -1
         }
+
+    fpsCounter: FPSCounter = new FPSCounter();
+
+    lastFrame: MapRenderInstruction[][] = [];
 
     static inputProcessing(input: MapLayoutInput) {
         const processedObjects: Cell[] = [];
@@ -61,6 +60,10 @@ export default class Map {
             } else {
                 processedObjects.push(cell);
             }
+        }
+
+        if (processedObjects.length !== input.x * input.y) {
+            throw new Error(`Invalid map layout: expected ${input.x * input.y} cells, got ${processedObjects.length}`);
         }
 
         return {
@@ -88,6 +91,8 @@ export default class Map {
         this.mapWidth = mapLayout.x * CELL_SIZE;
         this.mapHeight = mapLayout.y * CELL_SIZE;
 
+        this.camera.zoom = this.mapLayout.globalOverride.zoomLevel;
+
         this.canvas = document.getElementById(canvasId) as HTMLCanvasElement;
         this.canvas.width = this.canvas.offsetWidth;
         this.canvas.height = this.canvas.offsetHeight;
@@ -114,6 +119,10 @@ export default class Map {
 
         this.canvas.addEventListener("wheel", (event) => {
             if (event.deltaY > 0) {
+                if (this.camera.zoom === ZOOM_LEVELS[0]) {
+                    return this.camera.zoom;
+                }
+
                 this.camera.zoom = ZOOM_LEVELS.findLast((level, _) => {
                     if (level < this.camera.zoom) {
                         return true;
@@ -121,6 +130,9 @@ export default class Map {
                     return false;
                 }) ?? MIN_ZOOM;
             } else {
+                if (this.camera.zoom === ZOOM_LEVELS[ZOOM_LEVELS.length - 1]) {
+                    return this.camera.zoom;
+                }
                 this.camera.zoom = ZOOM_LEVELS.find((level, _) => {
                     if (level > this.camera.zoom) {
                         return true;
@@ -159,21 +171,33 @@ export default class Map {
         this.canvas.addEventListener("touchcancel", this.handleTouchCancelDecorator(() => this));
         this.canvas.addEventListener("touchmove", this.handleTouchMoveDecorator(() => this));
 
-        this.collisions.addEventListener("hover", (collision) => {
-            if (this.state.hoveredCell === collision.cellIndex) {
+        this.collisions.addEventListener("hover", (collision: Collision<number>) => {
+            if (this.state.hoveredCell === collision.reference) {
                 return;
             };
 
-            this.state.hoveredCell = collision.cellIndex;
+            this.state.hoveredCell = collision.reference;
+
+            if (collision.reference === -1) {
+                this.setCursor("grab");
+            } else {
+                this.setCursor("pointer");
+            }
 
             this.render();
         });
 
-        this.collisions.addEventListener("click", (collision) => {
-            if (this.state.selectedCell === collision.cellIndex) {
+        this.collisions.addEventListener("click", (collision: Collision<number>, mouseButtonsDown) => {
+            if (!mouseButtonsDown || !mouseButtonsDown.includes(MouseButtons.LEFT)) {
+                return;
+            }
+
+            this.setCursor("pointer");
+
+            if (this.state.selectedCell === collision.reference) {
                 this.state.selectedCell = -1;
             } else {
-                this.state.selectedCell = collision.cellIndex;
+                this.state.selectedCell = collision.reference;
             }
 
             if (this.mode === "edit") {
@@ -182,6 +206,25 @@ export default class Map {
 
             this.render();
         })
+
+        this.collisions.addEventListener("drag", (diffX: number, diffY: number) => {
+            this.camera.x -= diffX / this.camera.zoom;
+            this.camera.y -= diffY / this.camera.zoom;
+
+            this.setCursor("grabbing");
+
+            this.keepCameraConstraints();
+        });
+
+        this.collisions.addEventListener("dragend", () => {
+            if (this.state.hoveredCell === -1) {
+                this.setCursor("grab");
+            } else {
+                this.setCursor("pointer");
+            }
+
+            this.render();
+        });
 
         this.render();
     }
@@ -332,11 +375,14 @@ export default class Map {
     }
 
     render() {
-        const collisions: Collision[] = [];
+        const collisions: Collision<number>[] = [];
+        const layers: MapRenderInstruction[][] = [
+            [], // Cell layer
+            [], // Border layer
+            []  // Text layer
+        ];
 
         if (!this.ctx) return;
-
-        this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
 
         const renderedCellSize = CELL_SIZE * this.camera.zoom;
         const columnsAmount = this.mapLayout.x;
@@ -360,40 +406,53 @@ export default class Map {
             y: this.canvas.height * this.camera.zoom + (renderedCellSize * 2)
         };
 
-        for (let x = 1; x < (columnsAmount + 1); x++) {
-            this.ctx.globalAlpha = 1;
-            if (this.mode === "edit") {
+        if (this.mode === "edit") {
+            layers[0].push({
+                type: "strokerect",
+                x: -(renderedCellSize - marginX) - zoomAdjustedCameraXPos,
+                y: -(renderedCellSize - marginY) - zoomAdjustedCameraYPos,
+                width: (columnsAmount + 2) * renderedCellSize,
+                height: (rowsAmount + 2) * renderedCellSize,
+                color: "#0FF",
+                lineWidth: 0.5 * this.camera.zoom,
+                opacity: 1
+            })
+
+            for (let x = 1; x < (columnsAmount + 2); x++) {
                 const xPos = -(renderedCellSize - marginX) + x * renderedCellSize - zoomAdjustedCameraXPos;
                 const yPos = -(renderedCellSize - marginY) - zoomAdjustedCameraYPos;
 
-                this.ctx.strokeStyle = "#0FF";
-                this.ctx.lineWidth = 0.5 * this.camera.zoom;
-                this.ctx.strokeRect(xPos, yPos, renderedCellSize, renderedCellSize);
+                layers[0].push({
+                    type: "strokerect",
+                    x: xPos,
+                    y: yPos + renderedCellSize,
+                    width: 1,
+                    height: rowsAmount * renderedCellSize,
+                    color: "#CCC",
+                    lineWidth: 1 * this.camera.zoom,
+                    opacity: 0.4
+                })
+            }
 
-                const yPos2 = -(renderedCellSize - marginY) - zoomAdjustedCameraYPos + renderedCellSize * (rowsAmount + 1);
+            for (let y = 0; y < (rowsAmount + 1); y++) {
+                const xPos = -(renderedCellSize - marginX) - zoomAdjustedCameraXPos;
+                const yPos = -(renderedCellSize - marginY) + y * renderedCellSize - zoomAdjustedCameraYPos;
 
-                this.ctx.strokeStyle = "#0FF";
-                this.ctx.lineWidth = 0.5 * this.camera.zoom;
-                this.ctx.strokeRect(xPos, yPos2, renderedCellSize, renderedCellSize);
+                layers[0].push({
+                    type: "strokerect",
+                    x: xPos + renderedCellSize,
+                    y: yPos + renderedCellSize,
+                    width: columnsAmount * renderedCellSize,
+                    height: 1,
+                    color: "#CCC",
+                    lineWidth: 1 * this.camera.zoom,
+                    opacity: 0.4
+                })
             }
         }
 
         for (let y = 0; y < (rowsAmount); y++) {
             this.ctx.globalAlpha = 1;
-            if (this.mode === "edit") {
-                const xPos = -(renderedCellSize - marginX) - zoomAdjustedCameraXPos;
-                const yPos = -(renderedCellSize - marginY) + y * renderedCellSize - zoomAdjustedCameraYPos + renderedCellSize;
-
-                this.ctx.strokeStyle = "#0FF";
-                this.ctx.lineWidth = 0.5 * this.camera.zoom;
-                this.ctx.strokeRect(xPos, yPos, renderedCellSize, renderedCellSize);
-
-                const xPos2 = -(renderedCellSize - marginX) - zoomAdjustedCameraXPos + renderedCellSize * (columnsAmount + 1);
-
-                this.ctx.strokeStyle = "#0FF";
-                this.ctx.lineWidth = 0.5 * this.camera.zoom;
-                this.ctx.strokeRect(xPos2, yPos, renderedCellSize, renderedCellSize);
-            }
 
             for (let x = 0; x < columnsAmount; x++) {
                 this.ctx.globalAlpha = 1;
@@ -410,21 +469,27 @@ export default class Map {
                             y: yPos,
                             width: renderedCellSize,
                             height: renderedCellSize,
-                            cellIndex: cellIndex
+                            reference: cellIndex
                         });
 
-                        this.ctx.strokeStyle = "#CCC";
-                        this.ctx.lineWidth = 0.5 * this.camera.zoom;
-                        this.ctx.strokeRect(xPos, yPos, renderedCellSize, renderedCellSize);
-
-                        this.ctx.globalAlpha = 0.4;
+                        let backgroundColor;
 
                         if (this.state.selectedCell === cellIndex) {
-                            this.ctx.fillStyle = "lightgreen";
-                            this.ctx.fillRect(xPos, yPos, renderedCellSize, renderedCellSize);
+                            backgroundColor = "lightgreen";
                         } else if (this.state.hoveredCell === cellIndex) {
-                            this.ctx.fillStyle = "lightblue";
-                            this.ctx.fillRect(xPos, yPos, renderedCellSize, renderedCellSize);
+                            backgroundColor = "lightblue";
+                        }
+
+                        if (backgroundColor) {
+                            layers[0].push({
+                                type: "fillrect",
+                                x: xPos,
+                                y: yPos,
+                                width: renderedCellSize,
+                                height: renderedCellSize,
+                                color: backgroundColor,
+                                opacity: 0.4
+                            });
                         }
                     }
 
@@ -447,32 +512,98 @@ export default class Map {
                     y: yPos,
                     width: renderedCellSize,
                     height: renderedCellSize,
-                    cellIndex: cellIndex
+                    reference: cellIndex
                 });
 
-                this.ctx.globalAlpha = opacity;
+                layers[1].push({
+                    type: "strokerect",
+                    x: xPos,
+                    y: yPos,
+                    width: renderedCellSize,
+                    height: renderedCellSize,
+                    color: borderColor,
+                    lineWidth: borderWidth * this.camera.zoom,
+                    opacity: opacity
+                })
 
-                this.ctx.strokeStyle = borderColor;
-                this.ctx.lineWidth = borderWidth * this.camera.zoom;
-                this.ctx.strokeRect(xPos, yPos, renderedCellSize, renderedCellSize);
-
-                this.ctx.fillStyle = backgroundColor;
-                this.ctx.fillRect(xPos, yPos, renderedCellSize, renderedCellSize);
+                layers[0].push({
+                    type: "fillrect",
+                    x: xPos,
+                    y: yPos,
+                    width: renderedCellSize,
+                    height: renderedCellSize,
+                    color: backgroundColor,
+                    opacity: opacity
+                })
 
                 if (text) {
-                    this.ctx.fillStyle = "#000";
-                    this.ctx.font = `${12 * this.camera.zoom}px Arial`;
+                    this.ctx.font = `${12 * this.camera.zoom}px Arial`
                     const textMeasurements = this.ctx.measureText(text);
                     const textWidth = textMeasurements.actualBoundingBoxRight - textMeasurements.actualBoundingBoxLeft;
                     const textHeight = textMeasurements.actualBoundingBoxAscent + textMeasurements.actualBoundingBoxDescent;
                     const textXPos = xPos + (renderedCellSize / 2) - (textWidth / 2);
                     const textYPos = yPos + (renderedCellSize / 2) + (textHeight / 2);
-                    this.ctx.fillText(text, textXPos, textYPos);
+
+                    layers[2].push({
+                        type: "text",
+                        x: textXPos,
+                        y: textYPos,
+                        text: text,
+                        font: this.ctx.font,
+                        color: "#000",
+                        opacity: opacity
+                    });
                 }
             }
         }
 
-        this.collisions.registerPotentialCollisions(collisions);
+        if (JSON.stringify(this.lastFrame) !== JSON.stringify(layers)) {
+            this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+
+            for (let layer of layers) {
+                for (let instruction of layer) {
+                    if (instruction.type === "fillrect") {
+                        if (instruction.x + instruction.width < 0 || instruction.x > this.canvas.width ||
+                            instruction.y + instruction.height < 0 || instruction.y > this.canvas.height) {
+                            continue; // Skip rendering if out of bounds
+                        }
+                        this.ctx.fillStyle = instruction.color;
+                        this.ctx.globalAlpha = instruction.opacity;
+                        this.ctx.fillRect(instruction.x, instruction.y, instruction.width, instruction.height);
+                    }
+    
+                    if (instruction.type === "strokerect") {
+                        if (instruction.x + instruction.width < 0 || instruction.x > this.canvas.width ||
+                            instruction.y + instruction.height < 0 || instruction.y > this.canvas.height) {
+                            continue; // Skip rendering if out of bounds
+                        }
+                        this.ctx.strokeStyle = instruction.color;
+                        this.ctx.lineWidth = instruction.lineWidth;
+                        this.ctx.globalAlpha = instruction.opacity;
+                        this.ctx.strokeRect(instruction.x, instruction.y, instruction.width, instruction.height);
+                    }
+    
+                    if (instruction.type === "text") {
+                        this.ctx.font = instruction.font;
+                        this.ctx.globalAlpha = instruction.opacity;
+                        this.ctx.fillStyle = instruction.color;
+                        this.ctx.fillText(instruction.text, instruction.x, instruction.y);
+                    }
+                }
+            }
+
+            this.lastFrame = layers;
+        }
+
+        this.collisions.registerCollisions(collisions);
+
+        if (this.mode === "edit" || this.mode === "preview") {
+            this.ctx.font = `${16}px Arial`;
+            this.ctx.fillStyle = "#0F0";
+            this.ctx.fillText(this.fpsCounter.frameCount.toString(), 10, 20);
+
+            this.fpsCounter.tick();
+        }
     }
 
     getSpecifiedCellStyle(cellIndex: number): CellStyleOverride {
@@ -492,19 +623,94 @@ export default class Map {
             };
         }
 
-        let style = { ...DEFAULT_CELL_STYLES[cell.type], hoverOverride: undefined } as { backgroundColor: string, borderColor: string, borderWidth: number, text: string, opacity: number }
+        let style = { ...DEFAULT_CELL_STYLES[cell.type] } as { backgroundColor: string, borderColor: string, borderWidth: number, text: string, opacity: number }
+
+        for (const key in style) {
+            if (key === "hoverOverride" || key === "selectedOverride") continue;
+
+            // @ts-ignore
+            style[key] = cell.styleOverride?.[key] || style[key];
+        }
 
         if (hoverState) {
-            style = { ...style, ...DEFAULT_CELL_STYLES[cell.type].hoverOverride };
+            Object.assign(style, DEFAULT_CELL_STYLES[cell.type].hoverOverride);
+            Object.assign(style, cell.styleOverride || {});
+
+            if (cell.styleOverride?.hoverOverride) {
+                Object.assign(style, cell.styleOverride.hoverOverride);
+            }
         }
         if (selectedState) {
-            style = { ...style, ...DEFAULT_CELL_STYLES[cell.type].selectedOverride };
+            Object.assign(style, DEFAULT_CELL_STYLES[cell.type].selectedOverride);
+            Object.assign(style, cell.styleOverride || {});
+            Object.assign(style, cell.styleOverride?.hoverOverride || {});
+
+            if (cell.styleOverride?.selectedOverride) {
+                Object.assign(style, cell.styleOverride.selectedOverride);
+            }
         }
 
-        return { ...style, ...cell.styleOverride };
+        return style;
     }
 
-    copyTouchEvent({ identifier, pageX, pageY }: Touch) {
+    public togglePreview() {
+        if (this.mode === "edit") {
+            this.mode = "preview";
+        } else if (this.mode === "preview") {
+            this.mode = "edit";
+        }
+
+        this.state.selectedCell = -1;
+        this.state.hoveredCell = -1;
+
+        this.render();
+    }
+
+    exportMapLayout(): MapLayoutInput {
+        const cells: (Cell | `${number}`)[] = [];
+
+        let comboCount = 0;
+
+        for (let cell of this.mapLayout.cells) {
+            if (cell === null) {
+                comboCount++;
+
+                continue;
+            }
+
+            if (comboCount > 0) {
+                cells.push(`${comboCount}`);
+                comboCount = 0;
+            }
+
+            const cellCopy: Cell = { ...cell };
+
+            cells.push(cellCopy);
+        }
+
+        if (comboCount > 0) {
+            cells.push(`${comboCount}`);
+        }
+
+        return {
+            x: this.mapLayout.x,
+            y: this.mapLayout.y,
+            cells: cells,
+            globalOverride: {
+                backgroundColor: this.mapLayout.globalOverride.backgroundColor,
+                zoomLevel: this.mapLayout.globalOverride.zoomLevel,
+                cellStyleOverride: {
+                    seat: this.mapLayout.globalOverride.cellStyleOverride.seat,
+                    aisle: this.mapLayout.globalOverride.cellStyleOverride.aisle,
+                    wall: this.mapLayout.globalOverride.cellStyleOverride.wall,
+                    door: this.mapLayout.globalOverride.cellStyleOverride.door,
+                    custom: this.mapLayout.globalOverride.cellStyleOverride.custom
+                }
+            }
+        }
+    }
+
+    private copyTouchEvent({ identifier, pageX, pageY }: Touch) {
         return { identifier, pageX, pageY };
     }
 
@@ -517,5 +723,9 @@ export default class Map {
             }
         }
         return -1;
+    }
+
+    private setCursor(cursor: string) {
+        this.canvas.style.cursor = cursor;
     }
 }

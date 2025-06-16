@@ -1,6 +1,6 @@
 import CollisionManager from "./CollisionManager";
 import { CELL_STYLE_KEYS, EDITMENU_LABELS } from "./data";
-import { CellStyleOverride, CellStyleOverridePure, Collision, EditMenuElement, EditMenuState } from "./types";
+import { CellState, CellStyleOverride, CellStyleOverridePure, CellType, Collision, EditMenuElement, EditMenuState } from "./types";
 import { FPSCounter } from "./util";
 import Map from "./Map";
 
@@ -11,19 +11,9 @@ export default class EditMenu {
     ctx: CanvasRenderingContext2D;
     input: HTMLInputElement;
 
-    collisions: CollisionManager;
+    collisions: CollisionManager<string>;
 
     fpsCounter: FPSCounter = new FPSCounter();
-
-    controller: {
-        mouseX: number;
-        mouseY: number;
-        mouseDown: boolean;
-    } = {
-            mouseX: 0,
-            mouseY: 0,
-            mouseDown: false
-        }
 
     /**
      * State must always be stringifyable.
@@ -40,6 +30,8 @@ export default class EditMenu {
                 interval: 500 as const
             }
         },
+        selectedStyleState: "default",
+        selectedType: "seat",
         selectedInput: -1,
         cellStyleChanges: {},
         selectedCell: null
@@ -95,15 +87,71 @@ export default class EditMenu {
                     this.applyToMap();
                 }
             }
+
+            if (event.key === "Escape") {
+                this.input.blur();
+                this.unselectInput();
+            }
+
+            if (event.key === "Tab") {
+                event.preventDefault();
+
+                let nextInputIndex = 0;
+
+                for (let i = this.state.selectedInput + 1; i < this.elements.length; i++) {
+                    if (this.elements[i].type === "input") {
+                        nextInputIndex = i;
+                        break;
+                    }
+                }
+
+                if (nextInputIndex === 0) {
+                    for (let i = 0; i < this.elements.length; i++) {
+                        if (this.elements[i].type === "input") {
+                            nextInputIndex = i;
+                            break;
+                        }
+                    }
+                }
+
+                this.selectInput(nextInputIndex);
+            }
         }
 
-        this.collisions.addEventListener("click", (collision) => this.handleClickCollisions(collision));
+        this.input.onblur = () => {
+            this.unselectInput();
+        }
+
+        this.collisions.addEventListener("click", (collision: Collision<string>) => this.handleClickCollisions(collision));
 
         setInterval(() => this.runAnimations(), 50);
 
         this.unSelectCell();
 
         this.render();
+    }
+
+    selectInput(input: number) {
+        const element = this.elements[input];
+
+        if (element && element.type === "input") {
+            this.state.input.property = element.label as keyof CellStyleOverridePure;
+            this.state.input.value = this.cellStyleChangesByKey(element.value as keyof CellStyleOverridePure);
+            this.input.value = this.state.input.value;
+            this.input.focus();
+            this.state.selectedInput = input;
+            this.state.animations.blinkingCursor.lastTick = Date.now();
+            this.state.animations.blinkingCursor.lastState = "visible";
+        }
+    }
+
+    unselectInput() {
+        this.state.selectedInput = -1;
+        this.state.input.property = null;
+        this.state.input.value = "";
+        this.input.value = "";
+
+        this.renderIfStateChanged();
     }
 
     runAnimations() {
@@ -122,23 +170,101 @@ export default class EditMenu {
         this.renderIfStateChanged();
     }
 
-    handleClickCollisions(collision: Collision) {
-        if (collision.cellIndex < 0 || collision.cellIndex >= this.elements.length) {
+    cellStyleChangesByKey(key: keyof CellStyleOverridePure): string {
+        if (this.state.selectedStyleState === "default") {
+            return this.state.cellStyleChanges[key]?.toString() || ""
+        } else if (this.state.selectedStyleState === "hover") {
+            if (this.state.cellStyleChanges.hoverOverride) {
+                return this.state.cellStyleChanges.hoverOverride[key]?.toString() || "";
+            }
+        } else if (this.state.selectedStyleState === "selected") {
+            if (this.state.cellStyleChanges.selectedOverride) {
+                return this.state.cellStyleChanges.selectedOverride[key]?.toString() || "";
+            }
+        }
+
+        return "";
+    }
+
+    handleClickCollisions(collision: Collision<string>) {
+        if (collision.reference === -1) {
+            return;
+        }
+        if (parseInt(collision.reference).toString() === collision.reference) {
+            // Simple reference
+            const elementIndex = parseInt(collision.reference);
+            if (elementIndex < 0 || elementIndex >= this.elements.length) {
+                return;
+            }
+
+            const element = this.elements[elementIndex];
+
+            if (element.type === "input") {
+                this.selectInput(parseInt(collision.reference))
+            } else if (element.type === "button") {
+                element.action();
+            }
+
             return;
         }
 
-        const element = this.elements[collision.cellIndex];
+        if (collision.reference.endsWith("-") || collision.reference.endsWith("+")) {
+            // HSelect arrow click
+            const match = collision.reference.match(/(\d+)([+-])/);
 
-        if (element.type === "input") {
-            this.state.input.property = element.label as keyof CellStyleOverridePure;
-            this.state.input.value = element.value || "";
-            this.input.value = this.state.input.value;
-            this.input.focus();
-            this.state.selectedInput = collision.cellIndex;
-            this.state.animations.blinkingCursor.lastTick = Date.now();
-            this.state.animations.blinkingCursor.lastState = "visible";
-        } else if (element.type === "button") {
-            element.action();
+            const baseIndex = match?.[1];
+            const direction = match?.[2];
+
+            if (!baseIndex || !direction) {
+                console.error(`Invalid collision reference: ${collision.reference}`);
+                return;
+            }
+
+            const index = parseInt(baseIndex);
+
+            if (index < 0 || index >= this.elements.length) {
+                return;
+            }
+
+            const element = this.elements[index];
+
+            if (element.type === "hselect") {
+                if (element.label === "hslct_edit_state") {
+                    let selectedIndex = element.options.indexOf(this.state.selectedStyleState);
+
+                    if (direction === "-") {
+                        if (selectedIndex > 0) {
+                            selectedIndex--;
+                        }
+                    } else if (direction === "+") {
+                        if (selectedIndex < element.options.length - 1) {
+                            selectedIndex++;
+                        }
+                    }
+
+                    this.state.selectedStyleState = element.options[selectedIndex] as CellState;
+
+                    this.state.selectedInput = -1; // Unselect input when changing state
+                } else if (element.label === "hslct_type") {
+                    let selectedIndex = element.options.indexOf(this.state.selectedType);
+
+                    if (direction === "-") {
+                        if (selectedIndex > 0) {
+                            selectedIndex--;
+                        }
+                    } else if (direction === "+") {
+                        if (selectedIndex < element.options.length - 1) {
+                            selectedIndex++;
+                        }
+                    }
+
+                    this.state.selectedType = element.options[selectedIndex] as CellType;
+                }
+
+                this.renderIfStateChanged();
+            }
+
+            return;
         }
     }
 
@@ -153,14 +279,12 @@ export default class EditMenu {
             const element = this.elements[this.state.selectedInput];
 
             if (element && element.type === "input") {
-                element.value = this.state.input.value;
-
-                if (this.state.selectedCell.editState === "default") {
+                if (this.state.selectedStyleState === "default") {
                     // @ts-ignore
                     this.state.cellStyleChanges[this.state.input.property as keyof CellStyleOverride] = this.state.input.value;
                 }
 
-                if (this.state.selectedCell.editState === "hover") {
+                if (this.state.selectedStyleState === "hover") {
                     if (this.state.cellStyleChanges.hoverOverride === undefined) {
                         this.state.cellStyleChanges.hoverOverride = {};
                     }
@@ -169,7 +293,7 @@ export default class EditMenu {
                     this.state.cellStyleChanges.hoverOverride[this.state.input.property] = this.state.input.value;
                 }
 
-                if (this.state.selectedCell.editState === "selected") {
+                if (this.state.selectedStyleState === "selected") {
                     if (this.state.cellStyleChanges.selectedOverride === undefined) {
                         this.state.cellStyleChanges.selectedOverride = {};
                     }
@@ -189,6 +313,22 @@ export default class EditMenu {
         this.elements.push({
             type: "label",
             label: "default_text1"
+        }, {
+            type: "button",
+            label: "btn_export",
+            action: () => {
+                let a = document.createElement("a");
+                let file = new Blob([JSON.stringify(this.map.exportMapLayout())], { type: "JSON" });
+                a.href = URL.createObjectURL(file);
+                a.download = "test.json";
+                a.click();
+            }
+        }, {
+            type: "button",
+            label: "btn_toggle_preview",
+            action: () => {
+                this.map.togglePreview();
+            }
         })
 
         this.state.selectedInput = -1;
@@ -197,6 +337,8 @@ export default class EditMenu {
         this.input.value = "";
         this.state.cellStyleChanges = {};
         this.state.selectedCell = null;
+        this.state.selectedStyleState = "default";
+        this.state.selectedType = "seat";
 
         this.render();
     }
@@ -218,22 +360,31 @@ export default class EditMenu {
 
         elements.push({
             type: "hselect",
-            label: "hslct_edit_state",
+            label: "hslct_type",
             options: [
-                { value: "default", label: "Default" },
-                { value: "hover", label: "Hover" },
-                { value: "selected", label: "Selected" }
-            ],
-            selectedOption: 0
+                "seat",
+                "aisle",
+                "wall",
+                "door",
+                "custom"
+            ]
         });
 
-        const style = this.map.getSpecifiedCellStyle(cellIndex);
+        elements.push({
+            type: "hselect",
+            label: "hslct_edit_state",
+            options: [
+                "default",
+                "hover",
+                "selected"
+            ]
+        });
 
         for (const key of CELL_STYLE_KEYS) {
             elements.push({
                 type: "input",
                 label: key,
-                value: style[key as keyof CellStyleOverridePure]?.toString() || ""
+                value: key as keyof CellStyleOverridePure
             });
         }
 
@@ -251,6 +402,9 @@ export default class EditMenu {
             type: cell?.type || null
         }
 
+        this.state.cellStyleChanges = { ...(cell || {}).styleOverride };
+        this.state.selectedType = cell?.type || "seat";
+
         this.render();
     }
 
@@ -264,7 +418,18 @@ export default class EditMenu {
             return;
         }
 
-        const cell = this.map.mapLayout.cells[cellIndex];
+        let cell = this.map.mapLayout.cells[cellIndex];
+
+        if (cell === null) {
+            cell = {
+                id: cellIndex.toString(),
+                name: cellIndex.toString(),
+                type: this.state.selectedType,
+                styleOverride: {}
+            };
+
+            this.map.mapLayout.cells[cellIndex] = cell;
+        }
 
         if (!cell) {
             console.error(`No cell found at index: ${cellIndex}`);
@@ -275,6 +440,14 @@ export default class EditMenu {
             cell.styleOverride = {};
         }
 
+        if (this.state.cellStyleChanges.hoverOverride) {
+            cell.styleOverride.hoverOverride = { ...this.state.cellStyleChanges.hoverOverride };
+        }
+
+        if (this.state.cellStyleChanges.selectedOverride) {
+            cell.styleOverride.selectedOverride = { ...this.state.cellStyleChanges.selectedOverride };
+        }
+
         // Apply the style changes to the cell
         Object.assign(cell.styleOverride, this.state.cellStyleChanges);
 
@@ -283,6 +456,18 @@ export default class EditMenu {
                 delete cell.styleOverride[key as keyof CellStyleOverridePure];
             }
         }
+        for (const key in cell.styleOverride.hoverOverride) {
+            if (cell.styleOverride.hoverOverride[key as keyof CellStyleOverridePure] === "") {
+                delete cell.styleOverride.hoverOverride[key as keyof CellStyleOverridePure];
+            }
+        }
+        for (const key in cell.styleOverride.selectedOverride) {
+            if (cell.styleOverride.selectedOverride[key as keyof CellStyleOverridePure] === "") {
+                delete cell.styleOverride.selectedOverride[key as keyof CellStyleOverridePure];
+            }
+        }
+
+        cell.type = this.state.selectedType;
 
         this.map.render();
     }
@@ -303,7 +488,7 @@ export default class EditMenu {
         this.fpsCounter.tick();
         this.lastFrameState = JSON.parse(JSON.stringify(this.state));
 
-        const collisions: Collision[] = [];
+        const collisions: Collision<string>[] = [];
 
         const paddingX = 10;
         const marginY = 30;
@@ -351,13 +536,15 @@ export default class EditMenu {
 
                 let cursorMarginX = paddingX + inputPadding;
 
-                if (element.value && element.value.length > 0) {
+                let value: string = this.cellStyleChangesByKey(element.value as keyof CellStyleOverridePure);
+
+                if (value && value.length > 0) {
                     this.ctx.fillStyle = "#000";
                     this.ctx.font = `16px Arial`;
-                    const textMeasurements = this.ctx.measureText(element.value);
+                    const textMeasurements = this.ctx.measureText(value);
                     const textHeight = textMeasurements.actualBoundingBoxAscent + textMeasurements.actualBoundingBoxDescent;
 
-                    this.ctx.fillText(element.value, cursorMarginX, lastElementYEnd + (inputHeight / 2) + (textHeight / 2));
+                    this.ctx.fillText(value, cursorMarginX, lastElementYEnd + (inputHeight / 2) + (textHeight / 2));
 
                     cursorMarginX += textMeasurements.width;
                 }
@@ -375,49 +562,76 @@ export default class EditMenu {
                     y: lastElementYEnd,
                     width: inputWidth,
                     height: inputHeight,
-                    cellIndex: i
+                    reference: i.toString()
                 })
 
                 lastElementYEnd += 30 + marginY;
             } else if (element.type === "button") {
                 // Button rendering logic here
-                this.ctx.fillStyle = "#00F";
-                this.ctx.fillRect(paddingX, lastElementYEnd, inputWidth, inputHeight);
-                this.ctx.fillStyle = "#FFF";
                 this.ctx.font = `16px Arial`;
 
-                this.ctx.fillText(label, paddingX + inputPadding, lastElementYEnd + (inputHeight / 2) + 5);
+                const textWidth = this.ctx.measureText(label).width;
+                const buttonWidth = textWidth + (paddingX * 2);
+
+                this.ctx.fillStyle = "#00F";
+                this.ctx.fillRect(paddingX, lastElementYEnd, buttonWidth, inputHeight);
+
+                this.ctx.fillStyle = "#FFF";
+                this.ctx.fillText(label, paddingX + paddingX, lastElementYEnd + (inputHeight / 2) + 5);
 
                 collisions.push({
                     x: paddingX,
                     y: lastElementYEnd,
-                    width: inputWidth,
+                    width: buttonWidth,
                     height: inputHeight,
-                    cellIndex: i
+                    reference: i.toString()
                 });
 
                 lastElementYEnd += inputHeight + marginY;
             } else if (element.type === "hselect") {
-                // Select rendering logic here
+                let labelTag = "";
+
+                if (element.label === "hslct_edit_state") {
+                    labelTag = this.state.selectedStyleState;
+                } else if (element.label === "hslct_type") {
+                    labelTag = this.state.selectedType;
+                }
+
                 this.ctx.fillStyle = "#F00";
                 this.ctx.fillRect(paddingX, lastElementYEnd, inputWidth, inputHeight);
                 this.ctx.fillStyle = "#FFF";
-                this.ctx.font = `16px Arial`;
+                this.ctx.font = `20px Arial Bold`;
 
-                this.ctx.fillText(label, paddingX + inputPadding, lastElementYEnd + (inputHeight / 2) + 5);
+                const optionLabel = EDITMENU_LABELS[labelTag] || labelTag;
+
+                const textWidth = this.ctx.measureText(optionLabel).width;
+                const arrowWidth = this.ctx.measureText("→").width;
+
+                this.ctx.fillText("←", paddingX + 5, lastElementYEnd + (inputHeight / 2) + 5);
+                this.ctx.fillText("→", paddingX + inputWidth - 5 - arrowWidth, lastElementYEnd + (inputHeight / 2) + 5);
+
+                this.ctx.fillText(optionLabel, paddingX + ((inputWidth / 2) - (textWidth / 2)), lastElementYEnd + (inputHeight / 2) + 5);
 
                 collisions.push({
-                    x: paddingX,
+                    x: paddingX + 5,
                     y: lastElementYEnd,
-                    width: inputWidth,
+                    width: arrowWidth,
                     height: inputHeight,
-                    cellIndex: i
+                    reference: `${i}-`
+                });
+
+                collisions.push({
+                    x: paddingX + inputWidth - 5 - arrowWidth,
+                    y: lastElementYEnd,
+                    width: arrowWidth,
+                    height: inputHeight,
+                    reference: `${i}+`
                 });
 
                 lastElementYEnd += inputHeight + marginY;
             }
         }
 
-        this.collisions.registerPotentialCollisions(collisions);
+        this.collisions.registerCollisions(collisions);
     }
 }

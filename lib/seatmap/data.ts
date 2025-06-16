@@ -3,7 +3,7 @@ import { CellStyleOverride, CellType, PossibleZoomLevels } from "./types";
 export const CELL_SIZE = 25; // Size of each cell in pixels
 export const MAX_ZOOM = 6; // Maximum zoom level
 export const MIN_ZOOM = 0.8; // Minimum zoom level
-export const ZOOM_LEVELS = [0.8, 1, 1.2, 1.5, 2, 3, 4, 5, 6]; // Predefined zoom levels
+export const ZOOM_LEVELS = [0.8, 1, 1.2, 1.5, 2, 3, 4, 6, 7]; // Predefined zoom levels
 
 export const DEFAULT_MAP_BACKGROUND_COLOR = "#000";
 export const DEFAULT_ZOOM_LEVEL: PossibleZoomLevels = 1;
@@ -124,7 +124,26 @@ export const EDITMENU_LABELS: Record<string, string> = {
     opacity: "Opacity",
     default_text1: "Click on a cell to edit it",
     btn_apply: "Apply",
-    hslct_edit_state: "Chose Cell State",
+    hslct_edit_state: "Choose Cell State",
+    default: "Default",
+    hover: "Hover",
+    selected: "Select",
+    hslct_type: "Choose Cell Type",
+    seat: "Seat",
+    aisle: "Aisle",
+    wall: "Wall",
+    door: "Door",
+    custom: "Custom",
+    btn_export: "Export",
+    btn_toggle_preview: "Toggle Preview",
 };
 
 export const CELL_STYLE_KEYS = Object.keys(EDITMENU_LABELS).slice(0, 5);
+
+export enum MouseButtons {
+    LEFT = 0,
+    MIDDLE = 1,
+    RIGHT = 2,
+    BACK = 3,
+    FORWARD = 4
+}
