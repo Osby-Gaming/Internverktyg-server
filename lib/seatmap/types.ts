@@ -3,8 +3,7 @@ import { MouseButtons } from "./data";
 export type CellType = "seat" | "aisle" | "wall" | "door" | "custom";
 
 export type Cell = {
-    id: string;
-    name: string;
+    name?: string;
     type: CellType;
     styleOverride?: CellStyleOverride;
 } | null;
@@ -84,8 +83,8 @@ export type EditMenuState = {
     selectedStyleState: CellState;
     selectedType: CellType;
     cellStyleChanges: CellStyleOverride;
-    selectedCell: {
-        readonly index: number;
+    selectedCells: {
+        readonly indexes: number[];
         type: CellType | null;
         editState: CellState;
     } | null;

@@ -136,6 +136,7 @@ export const EDITMENU_LABELS: Record<string, string> = {
     custom: "Custom",
     btn_export: "Export",
     btn_toggle_preview: "Toggle Preview",
+    btn_save: "Save",
 };
 
 export const CELL_STYLE_KEYS = Object.keys(EDITMENU_LABELS).slice(0, 5);

@@ -2,9 +2,9 @@ import CollisionManager from "./CollisionManager";
 import { DEFAULT_MAP_BACKGROUND_COLOR, DEFAULT_ZOOM_LEVEL, CELL_SIZE, ZOOM_LEVELS, MIN_ZOOM, MAX_ZOOM, DEFAULT_CELL_STYLES, MouseButtons } from "./data";
 import EditMenu from "./EditMenu";
 import { Cell, CellStyleOverride, Collision, MapLayout, MapLayoutInput, MapMode, MapRenderInstruction } from "./types";
-import { FPSCounter } from "./util";
+import { EventEmitter, FPSCounter } from "./util";
 
-export default class Map {
+export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
     mode: MapMode;
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D | null;
@@ -23,7 +23,7 @@ export default class Map {
             zoom: 1,
         }
 
-    controller: {
+    private controller: {
         keysPressed: string[];
     } = {
             keysPressed: []
@@ -34,17 +34,28 @@ export default class Map {
 
     ongoingTouches: { identifier: number, pageX: number, pageY: number }[] = [];
 
-    state: {
+    private state: {
         hoveredCell: number
-        selectedCell: number
+        selectedCells: number[],
+        multiSelect: {
+            start: { x: number, y: number },
+            current: { x: number, y: number },
+            selecting: boolean
+        }
     } = {
             hoveredCell: -1,
-            selectedCell: -1
+            selectedCells: [],
+            multiSelect: {
+                start: { x: 0, y: 0 },
+                current: { x: 0, y: 0 },
+                selecting: false
+            }
         }
 
     fpsCounter: FPSCounter = new FPSCounter();
 
     lastFrame: MapRenderInstruction[][] = [];
+    lastFrameTimestamp: number = 0;
 
     static inputProcessing(input: MapLayoutInput) {
         const processedObjects: Cell[] = [];
@@ -85,6 +96,7 @@ export default class Map {
     }
 
     constructor(mode: MapMode, canvasId: string, mapLayout: MapLayoutInput, editMenuId?: string) {
+        super();
         this.mode = mode;
 
         this.mapLayout = Map.inputProcessing(mapLayout);
@@ -194,20 +206,39 @@ export default class Map {
 
             this.setCursor("pointer");
 
-            if (this.state.selectedCell === collision.reference) {
-                this.state.selectedCell = -1;
+            if (this.state.selectedCells.includes(collision.reference)) {
+                this.state.selectedCells = [];
             } else {
-                this.state.selectedCell = collision.reference;
+                this.state.selectedCells = [collision.reference];
             }
 
             if (this.mode === "edit") {
-                this.editMenu?.selectCell(this.state.selectedCell);
+                this.editMenu?.selectCells(this.state.selectedCells);
             }
 
             this.render();
         })
 
         this.collisions.addEventListener("drag", (diffX: number, diffY: number) => {
+            if (this.controller.keysPressed.includes("Control")) {
+                if (!this.state.multiSelect.selecting) {
+                    this.state.multiSelect.selecting = true;
+                    this.state.multiSelect.start.x = this.collisions.drag.start.x;
+                    this.state.multiSelect.start.y = this.collisions.drag.start.y;
+                    this.state.multiSelect.current.x = this.state.multiSelect.start.x;
+                    this.state.multiSelect.current.y = this.state.multiSelect.start.y;
+                } else {
+                    this.state.multiSelect.current.x += diffX;
+                    this.state.multiSelect.current.y += diffY;
+                }
+
+                this.state.multiSelect.selecting = true;
+
+                this.render();
+
+                return;
+            }
+
             this.camera.x -= diffX / this.camera.zoom;
             this.camera.y -= diffY / this.camera.zoom;
 
@@ -217,6 +248,8 @@ export default class Map {
         });
 
         this.collisions.addEventListener("dragend", () => {
+            this.state.multiSelect.selecting = false;
+
             if (this.state.hoveredCell === -1) {
                 this.setCursor("grab");
             } else {
@@ -379,10 +412,15 @@ export default class Map {
         const layers: MapRenderInstruction[][] = [
             [], // Cell layer
             [], // Border layer
-            []  // Text layer
+            [],  // Text layer
+            [] // Overlay layer
         ];
 
         if (!this.ctx) return;
+
+        if (this.lastFrameTimestamp + 1000 / 60 > performance.now()) {
+            return;
+        }
 
         const renderedCellSize = CELL_SIZE * this.camera.zoom;
         const columnsAmount = this.mapLayout.x;
@@ -407,6 +445,43 @@ export default class Map {
         };
 
         if (this.mode === "edit") {
+            if (this.state.multiSelect.selecting) {
+                const startX = this.state.multiSelect.start.x;
+                const startY = this.state.multiSelect.start.y;
+                const currentX = this.state.multiSelect.current.x;
+                const currentY = this.state.multiSelect.current.y;
+
+                let x;
+                let y;
+                let width;
+                let height;
+
+                if (currentX < startX) {
+                    x = currentX;
+                    width = startX - currentX;
+                } else {
+                    x = startX;
+                    width = currentX - startX;
+                }
+
+                if (currentY < startY) {
+                    y = currentY;
+                    height = startY - currentY;
+                } else {
+                    y = startY;
+                    height = currentY - startY;
+                }
+
+                layers[3].push({
+                    type: "fillrect",
+                    x,
+                    y,
+                    width,
+                    height,
+                    color: "rgba(0, 128, 255, 0.5)",
+                    opacity: 0.8
+                });
+            }
             layers[0].push({
                 type: "strokerect",
                 x: -(renderedCellSize - marginX) - zoomAdjustedCameraXPos,
@@ -474,7 +549,7 @@ export default class Map {
 
                         let backgroundColor;
 
-                        if (this.state.selectedCell === cellIndex) {
+                        if (this.state.selectedCells.includes(cellIndex)) {
                             backgroundColor = "lightgreen";
                         } else if (this.state.hoveredCell === cellIndex) {
                             backgroundColor = "lightblue";
@@ -496,7 +571,7 @@ export default class Map {
                     continue;
                 };
 
-                const { backgroundColor, borderColor, borderWidth, text, opacity } = this.getCellStyle(cell, this.state.hoveredCell === cellIndex, this.state.selectedCell === cellIndex);
+                const { backgroundColor, borderColor, borderWidth, text, opacity } = this.getCellStyle(cell, this.state.hoveredCell === cellIndex, this.state.selectedCells.includes(cellIndex));
 
                 const xPos = x * renderedCellSize + marginX - zoomAdjustedCameraXPos;
                 const yPos = y * renderedCellSize + marginY - zoomAdjustedCameraYPos;
@@ -571,10 +646,10 @@ export default class Map {
                         this.ctx.globalAlpha = instruction.opacity;
                         this.ctx.fillRect(instruction.x, instruction.y, instruction.width, instruction.height);
                     }
-    
+
                     if (instruction.type === "strokerect") {
-                        if (instruction.x + instruction.width < 0 || instruction.x > this.canvas.width ||
-                            instruction.y + instruction.height < 0 || instruction.y > this.canvas.height) {
+                        if (instruction.x + instruction.width + (instruction.lineWidth / 2) < 0 || instruction.x > this.canvas.width ||
+                            instruction.y + instruction.height + (instruction.lineWidth / 2) < 0 || instruction.y > this.canvas.height) {
                             continue; // Skip rendering if out of bounds
                         }
                         this.ctx.strokeStyle = instruction.color;
@@ -582,7 +657,7 @@ export default class Map {
                         this.ctx.globalAlpha = instruction.opacity;
                         this.ctx.strokeRect(instruction.x, instruction.y, instruction.width, instruction.height);
                     }
-    
+
                     if (instruction.type === "text") {
                         this.ctx.font = instruction.font;
                         this.ctx.globalAlpha = instruction.opacity;
@@ -604,6 +679,8 @@ export default class Map {
 
             this.fpsCounter.tick();
         }
+
+        this.lastFrameTimestamp = performance.now()
     }
 
     getSpecifiedCellStyle(cellIndex: number): CellStyleOverride {
@@ -660,7 +737,7 @@ export default class Map {
             this.mode = "edit";
         }
 
-        this.state.selectedCell = -1;
+        this.state.selectedCells = [];
         this.state.hoveredCell = -1;
 
         this.render();
@@ -685,6 +762,10 @@ export default class Map {
 
             const cellCopy: Cell = { ...cell };
 
+            if (JSON.stringify(cellCopy.styleOverride) === "{}" || cellCopy.styleOverride === undefined) {
+                delete cellCopy.styleOverride;
+            }
+
             cells.push(cellCopy);
         }
 
@@ -692,7 +773,7 @@ export default class Map {
             cells.push(`${comboCount}`);
         }
 
-        return {
+        const exportData: MapLayoutInput = {
             x: this.mapLayout.x,
             y: this.mapLayout.y,
             cells: cells,
@@ -708,6 +789,35 @@ export default class Map {
                 }
             }
         }
+
+
+        if (exportData.globalOverride) {
+            if (exportData.globalOverride.cellStyleOverride) {
+                for (const key in exportData.globalOverride.cellStyleOverride) {
+                    //@ts-expect-error
+                    if (exportData.globalOverride.cellStyleOverride[key] === undefined) {
+                        //@ts-expect-error
+                        delete exportData.globalOverride.cellStyleOverride[key];
+                    }
+                }
+            }
+            if (JSON.stringify(exportData.globalOverride.cellStyleOverride) === "{}" || exportData.globalOverride.cellStyleOverride === undefined) {
+                delete exportData.globalOverride.cellStyleOverride;
+            }
+            if (exportData.globalOverride.backgroundColor === DEFAULT_MAP_BACKGROUND_COLOR || exportData.globalOverride.backgroundColor === undefined) {
+                delete exportData.globalOverride.backgroundColor;
+            }
+            if (exportData.globalOverride.zoomLevel === DEFAULT_ZOOM_LEVEL || exportData.globalOverride.zoomLevel === undefined) {
+                delete exportData.globalOverride.zoomLevel;
+            }
+
+        }
+
+        if (JSON.stringify(exportData.globalOverride) === "{}" || exportData.globalOverride === undefined) {
+            delete exportData.globalOverride;
+        }
+
+        return exportData;
     }
 
     private copyTouchEvent({ identifier, pageX, pageY }: Touch) {
@@ -727,5 +837,15 @@ export default class Map {
 
     private setCursor(cursor: string) {
         this.canvas.style.cursor = cursor;
+    }
+
+    public unselectCells() {
+        this.state.selectedCells = [];
+
+        if (this.mode === "edit") {
+            this.editMenu?.selectCells(this.state.selectedCells);
+        }
+
+        this.render();
     }
 }

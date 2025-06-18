@@ -34,7 +34,7 @@ export default class EditMenu {
         selectedType: "seat",
         selectedInput: -1,
         cellStyleChanges: {},
-        selectedCell: null
+        selectedCells: null
     }
 
     lastFrameState: EditMenuState = JSON.parse(JSON.stringify(this.state));
@@ -69,15 +69,11 @@ export default class EditMenu {
 
         this.canvas.onkeydown = (event) => {
             if (event.key === "Escape") {
-                if (!this.state.selectedCell) {
+                if (!this.state.selectedCells) {
                     return;
                 }
 
-                this.unSelectCell();
-                this.input.blur();
-
-                this.map.state.selectedCell = -1;
-                this.map.render();
+                this.map.unselectCells();
             }
         }
 
@@ -269,7 +265,7 @@ export default class EditMenu {
     }
 
     handleInputChange(event: Event) {
-        if (!this.state.selectedCell || this.state.selectedInput < 0 || this.state.selectedInput >= this.elements.length) {
+        if (!this.state.selectedCells || this.state.selectedInput < 0 || this.state.selectedInput >= this.elements.length) {
             return;
         }
 
@@ -308,6 +304,8 @@ export default class EditMenu {
     }
 
     unSelectCell() {
+        this.input.blur();
+        
         this.elements = [];
 
         this.elements.push({
@@ -325,6 +323,12 @@ export default class EditMenu {
             }
         }, {
             type: "button",
+            label: "btn_save",
+            action: () => {
+                this.map.emit("save", this.map.exportMapLayout());
+            }
+        }, {
+            type: "button",
             label: "btn_toggle_preview",
             action: () => {
                 this.map.togglePreview();
@@ -336,27 +340,30 @@ export default class EditMenu {
         this.state.input.value = "";
         this.input.value = "";
         this.state.cellStyleChanges = {};
-        this.state.selectedCell = null;
+        this.state.selectedCells = null;
         this.state.selectedStyleState = "default";
         this.state.selectedType = "seat";
 
         this.render();
     }
 
-    selectCell(cellIndex: number) {
-        const elements: EditMenuElement[] = [];
-
-        if (cellIndex < 0 || cellIndex >= this.map.mapLayout.cells.length) {
+    selectCells(cellIndexes: number[]) {
+        if (cellIndexes.length === 0) {
             this.unSelectCell();
 
             return;
         }
 
-        const cell = this.map.mapLayout.cells[cellIndex];
+        for (let i = 0; i < cellIndexes.length; i++) {
+            const cell2 = this.map.mapLayout.cells[cellIndexes[i]];
+            if (!cell2) {
+                console.error(`No cell found at index: ${cellIndexes[i]}`);
 
-        if (cell === undefined) {
-            throw new Error(`No cell found at index: ${cellIndex}`);
+                return;
+            }
         }
+
+        const elements: EditMenuElement[] = [];
 
         elements.push({
             type: "hselect",
@@ -396,8 +403,10 @@ export default class EditMenu {
 
         this.elements = elements;
 
-        this.state.selectedCell = {
-            index: cellIndex,
+        const cell = this.map.mapLayout.cells[cellIndexes[0]];
+
+        this.state.selectedCells = {
+            indexes: cellIndexes,
             editState: "default",
             type: cell?.type || null
         }
@@ -409,65 +418,66 @@ export default class EditMenu {
     }
 
     applyToMap() {
-        if (!this.map || !this.state.selectedCell) return;
+        if (!this.map || !this.state.selectedCells) return;
 
-        const cellIndex = this.state.selectedCell.index;
+        const cellIndexes = this.state.selectedCells.indexes;
 
-        if (cellIndex < 0 || cellIndex >= this.map.mapLayout.cells.length) {
-            console.error(`Invalid cell index: ${cellIndex}`);
-            return;
-        }
-
-        let cell = this.map.mapLayout.cells[cellIndex];
-
-        if (cell === null) {
-            cell = {
-                id: cellIndex.toString(),
-                name: cellIndex.toString(),
-                type: this.state.selectedType,
-                styleOverride: {}
-            };
-
-            this.map.mapLayout.cells[cellIndex] = cell;
-        }
-
-        if (!cell) {
-            console.error(`No cell found at index: ${cellIndex}`);
-            return;
-        }
-
-        if (!cell.styleOverride) {
-            cell.styleOverride = {};
-        }
-
-        if (this.state.cellStyleChanges.hoverOverride) {
-            cell.styleOverride.hoverOverride = { ...this.state.cellStyleChanges.hoverOverride };
-        }
-
-        if (this.state.cellStyleChanges.selectedOverride) {
-            cell.styleOverride.selectedOverride = { ...this.state.cellStyleChanges.selectedOverride };
-        }
-
-        // Apply the style changes to the cell
-        Object.assign(cell.styleOverride, this.state.cellStyleChanges);
-
-        for (const key in cell.styleOverride) {
-            if (cell.styleOverride[key as keyof CellStyleOverridePure] === "") {
-                delete cell.styleOverride[key as keyof CellStyleOverridePure];
+        for (let cellIndex of cellIndexes) {
+            if (cellIndex < 0 || cellIndex >= this.map.mapLayout.cells.length) {
+                console.error(`Invalid cell index: ${cellIndex}`);
+                return;
             }
-        }
-        for (const key in cell.styleOverride.hoverOverride) {
-            if (cell.styleOverride.hoverOverride[key as keyof CellStyleOverridePure] === "") {
-                delete cell.styleOverride.hoverOverride[key as keyof CellStyleOverridePure];
-            }
-        }
-        for (const key in cell.styleOverride.selectedOverride) {
-            if (cell.styleOverride.selectedOverride[key as keyof CellStyleOverridePure] === "") {
-                delete cell.styleOverride.selectedOverride[key as keyof CellStyleOverridePure];
-            }
-        }
 
-        cell.type = this.state.selectedType;
+            let cell = this.map.mapLayout.cells[cellIndex];
+
+            if (cell === null) {
+                cell = {
+                    name: cellIndex.toString(),
+                    type: this.state.selectedType,
+                    styleOverride: {}
+                };
+
+                this.map.mapLayout.cells[cellIndex] = cell;
+            }
+
+            if (!cell) {
+                console.error(`No cell found at index: ${cellIndex}`);
+                return;
+            }
+
+            if (!cell.styleOverride) {
+                cell.styleOverride = {};
+            }
+
+            if (this.state.cellStyleChanges.hoverOverride) {
+                cell.styleOverride.hoverOverride = { ...this.state.cellStyleChanges.hoverOverride };
+            }
+
+            if (this.state.cellStyleChanges.selectedOverride) {
+                cell.styleOverride.selectedOverride = { ...this.state.cellStyleChanges.selectedOverride };
+            }
+
+            // Apply the style changes to the cell
+            Object.assign(cell.styleOverride, this.state.cellStyleChanges);
+
+            for (const key in cell.styleOverride) {
+                if (cell.styleOverride[key as keyof CellStyleOverridePure] === "") {
+                    delete cell.styleOverride[key as keyof CellStyleOverridePure];
+                }
+            }
+            for (const key in cell.styleOverride.hoverOverride) {
+                if (cell.styleOverride.hoverOverride[key as keyof CellStyleOverridePure] === "") {
+                    delete cell.styleOverride.hoverOverride[key as keyof CellStyleOverridePure];
+                }
+            }
+            for (const key in cell.styleOverride.selectedOverride) {
+                if (cell.styleOverride.selectedOverride[key as keyof CellStyleOverridePure] === "") {
+                    delete cell.styleOverride.selectedOverride[key as keyof CellStyleOverridePure];
+                }
+            }
+
+            cell.type = this.state.selectedType;
+        }
 
         this.map.render();
     }

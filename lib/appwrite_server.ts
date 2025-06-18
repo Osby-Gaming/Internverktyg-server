@@ -9,6 +9,7 @@ const APPWRITE_HOSTNAME_OR_IP = process.env.APPWRITE_HOSTNAME_OR_IP || ''
 const APPWRITE_API_KEY = process.env.APPWRITE_API_KEY || '';
 const COLLECTION_SEATINGS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_SEATINGS_ID || '';
 const COLLECTION_PARTICIPANTS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_PARTICIPANTS_ID || '';
+const COLLECTION_MAP_ROOMS = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_MAP_ROOMS_ID || '';
 
 
 if (!PROJECT_ID) {
@@ -28,6 +29,9 @@ if (!COLLECTION_SEATINGS_ID) {
 }
 if (!COLLECTION_PARTICIPANTS_ID) {
     throw new Error("Missing required environment variable NEXT_PUBLIC_APPWRITE_COLLECTION_PARTICIPANTS_ID");
+}
+if (!COLLECTION_MAP_ROOMS) {
+    throw new Error("Missing required environment variable NEXT_PUBLIC_APPWRITE_COLLECTION_MAP_ROOMS");
 }
 
 export function getAppwriteClient() {
@@ -54,6 +58,26 @@ export async function getAllSeats(include?: string[], limit?: number) {
     }
 
     return COMMONLIB.listDocuments(COLLECTION_SEATINGS_ID, queries);
+}
+
+export async function getAllRooms(include?: string[], limit?: number) {
+    const queries = [];
+
+    if (include) {
+        queries.push(Query.select(include));
+    }
+    if (limit) {
+        queries.push(Query.limit(limit));
+    }
+    if (!limit) {
+        queries.push(Query.limit(99999));
+    }
+
+    return COMMONLIB.listDocuments(COLLECTION_MAP_ROOMS, queries);
+}
+
+export async function getRoom(id: string) {
+    return await COMMONLIB.getDocument(COLLECTION_PARTICIPANTS_ID, id);
 }
 
 export async function claimSeatForParticipant(seatNumber: string, roomName: string, participantId: string) {
