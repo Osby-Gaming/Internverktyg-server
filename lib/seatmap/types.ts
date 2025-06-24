@@ -91,51 +91,55 @@ export type EditMenuState = {
 }
 
 export type EditMenuElement = {
-    type: "input";
     label: string;
+} & ({
+    type: "input";
     value?: keyof CellStyleOverridePure;
 } | {
     type: "button";
-    label: string;
     action: () => void;
 } | {
     type: "select";
-    label: string;
     options: string[];
 } | {
     type: "label";
-    label: string;
 } | {
     type: "hselect";
-    label: string;
     options: string[];
-}
+} | {
+    type: "group";
+    elements: EditMenuElement[];
+})
 
 export type MapMode = "view" | "edit" | "preview";
 
 export type CollisionCallback<ref> = ((collision: Collision<ref>, buttons?: MouseButtons[]) => void);
-export type DragCallback = ((diffX: number, diffY: number, buttons?: MouseButtons[]) => void);
+export type DragCallback = ((diffX: number, diffY: number, buttons: MouseButtons[]) => void);
 
 export type MapRenderInstruction = {
     x: number;
     y: number;
-    type: "text";
-    font: string;
-    color: string;
-    text: string;
     opacity: number;
-} | ({
-    x: number;
-    y: number;
-    width: number;
-    height: number;
-} & ({
-    type: "fillrect";
-    color: string;
-    opacity: number;
-} | {
-    type: "strokerect";
-    color: string;
-    opacity: number;
-    lineWidth: number;
-}))
+} &
+    (({
+        type: "text";
+        font: string;
+        color: string;
+        text: string;
+    } | {
+        type: "path";
+        path: string;
+        color: string;
+    })
+        |
+        ({
+            width: number;
+            height: number;
+        } & ({
+            type: "fillrect";
+            color: string;
+        } | {
+            type: "strokerect";
+            color: string;
+            lineWidth: number;
+        })))

@@ -72,23 +72,21 @@ export default class CollisionManager<ref> {
 
             const { offsetX, offsetY } = event;
 
-            if (this.mouseState.mouseButtonsDown.includes(MouseButtons.LEFT)) {
-                if (offsetX !== this.drag.latest.x || offsetY !== this.drag.latest.y) {
-                    for (const listener of this.listeners.drag) {
-                        listener(offsetX - this.drag.latest.x, offsetY - this.drag.latest.y, this.mouseState.mouseButtonsDown);
-                    }
+            if (offsetX !== this.drag.latest.x || offsetY !== this.drag.latest.y) {
+                for (const listener of this.listeners.drag) {
+                    listener(offsetX - this.drag.latest.x, offsetY - this.drag.latest.y, this.mouseState.mouseButtonsDown);
                 }
-
-                this.drag.latest.x = offsetX;
-                this.drag.latest.y = offsetY;
-            } else {
-                this.activeHoverCollisions = this.collisions.filter(collision => {
-                    return collision.x <= offsetX &&
-                        collision.x + collision.width >= offsetX &&
-                        collision.y <= offsetY &&
-                        collision.y + collision.height >= offsetY;
-                })
             }
+
+            this.drag.latest.x = offsetX;
+            this.drag.latest.y = offsetY;
+
+            this.activeHoverCollisions = this.collisions.filter(collision => {
+                return collision.x <= offsetX &&
+                    collision.x + collision.width >= offsetX &&
+                    collision.y <= offsetY &&
+                    collision.y + collision.height >= offsetY;
+            })
 
             for (const collision of this.activeHoverCollisions) {
                 for (const listener of this.listeners.hover) {

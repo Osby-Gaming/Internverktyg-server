@@ -1,8 +1,9 @@
+import invert from "invert-color";
 import CollisionManager from "./CollisionManager";
-import { DEFAULT_MAP_BACKGROUND_COLOR, DEFAULT_ZOOM_LEVEL, CELL_SIZE, ZOOM_LEVELS, MIN_ZOOM, MAX_ZOOM, DEFAULT_CELL_STYLES, MouseButtons } from "./data";
+import { DEFAULT_MAP_BACKGROUND_COLOR, DEFAULT_ZOOM_LEVEL, CELL_SIZE, ZOOM_LEVELS, MIN_ZOOM, MAX_ZOOM, DEFAULT_CELL_STYLES, MouseButtons, SVGPaths } from "./data";
 import EditMenu from "./EditMenu";
 import { Cell, CellStyleOverride, Collision, MapLayout, MapLayoutInput, MapMode, MapRenderInstruction } from "./types";
-import { EventEmitter, FPSCounter } from "./util";
+import { EventEmitter, FPSCounter, getHexFromCSSColor } from "./util";
 
 export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
     mode: MapMode;
@@ -40,7 +41,8 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
         multiSelect: {
             start: { x: number, y: number },
             current: { x: number, y: number },
-            selecting: boolean
+            selecting: boolean,
+            dontSelect: boolean
         }
     } = {
             hoveredCell: -1,
@@ -48,7 +50,8 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
             multiSelect: {
                 start: { x: 0, y: 0 },
                 current: { x: 0, y: 0 },
-                selecting: false
+                selecting: false,
+                dontSelect: false
             }
         }
 
@@ -109,6 +112,10 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
         this.canvas.width = this.canvas.offsetWidth;
         this.canvas.height = this.canvas.offsetHeight;
 
+        this.canvas.oncontextmenu = () => {
+            return false;
+        }
+
         this.ctx = this.canvas.getContext("2d", { alpha: false });
 
         this.collisions = new CollisionManager(this);
@@ -130,6 +137,12 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
         }
 
         this.canvas.addEventListener("wheel", (event) => {
+            event.preventDefault();
+
+            if (this.state.multiSelect.selecting) {
+                return;
+            }
+
             if (event.deltaY > 0) {
                 if (this.camera.zoom === ZOOM_LEVELS[0]) {
                     return this.camera.zoom;
@@ -153,7 +166,7 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
                 }) ?? MAX_ZOOM;
             }
 
-            this.keepCameraConstraints();
+            this.keepCameraConstraintsAndRender();
         });
 
         this.canvas.addEventListener("keydown", (event) => {
@@ -206,10 +219,18 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
 
             this.setCursor("pointer");
 
-            if (this.state.selectedCells.includes(collision.reference)) {
-                this.state.selectedCells = [];
+            if (this.mode === "edit" && this.controller.keysPressed.includes("Shift")) {
+                if (this.state.selectedCells.includes(collision.reference)) {
+                    this.state.selectedCells = this.state.selectedCells.filter(cell => cell !== collision.reference);
+                } else {
+                    this.state.selectedCells.push(collision.reference);
+                }
             } else {
-                this.state.selectedCells = [collision.reference];
+                if (this.state.selectedCells.includes(collision.reference)) {
+                    this.state.selectedCells = [];
+                } else {
+                    this.state.selectedCells = [collision.reference];
+                }
             }
 
             if (this.mode === "edit") {
@@ -219,36 +240,50 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
             this.render();
         })
 
-        this.collisions.addEventListener("drag", (diffX: number, diffY: number) => {
-            if (this.controller.keysPressed.includes("Control")) {
-                if (!this.state.multiSelect.selecting) {
-                    this.state.multiSelect.selecting = true;
-                    this.state.multiSelect.start.x = this.collisions.drag.start.x;
-                    this.state.multiSelect.start.y = this.collisions.drag.start.y;
-                    this.state.multiSelect.current.x = this.state.multiSelect.start.x;
-                    this.state.multiSelect.current.y = this.state.multiSelect.start.y;
-                } else {
-                    this.state.multiSelect.current.x += diffX;
-                    this.state.multiSelect.current.y += diffY;
+        this.collisions.addEventListener("drag", (diffX: number, diffY: number, mouseButtons: MouseButtons[]) => {
+            if (mouseButtons.includes(MouseButtons.RIGHT)) {
+                if (this.mode === "edit") {
+                    if (!this.state.multiSelect.dontSelect) {
+                        if (!this.state.multiSelect.selecting) {
+                            this.state.multiSelect.selecting = true;
+                            this.state.multiSelect.start.x = this.collisions.drag.start.x;
+                            this.state.multiSelect.start.y = this.collisions.drag.start.y;
+                            this.state.multiSelect.current.x = this.state.multiSelect.start.x;
+                            this.state.multiSelect.current.y = this.state.multiSelect.start.y;
+                        } else {
+                            this.state.multiSelect.current.x += diffX;
+                            this.state.multiSelect.current.y += diffY;
+                        }
+
+                        this.state.multiSelect.selecting = true;
+
+                        this.render();
+
+                        return;
+                    }
+
+                    if (this.state.multiSelect.selecting) {
+                        this.stopMultiSelect();
+                    }
                 }
+            } else if (mouseButtons.includes(MouseButtons.LEFT)) {
+                this.state.multiSelect.dontSelect = true;
 
-                this.state.multiSelect.selecting = true;
+                this.camera.x -= diffX / this.camera.zoom;
+                this.camera.y -= diffY / this.camera.zoom;
 
-                this.render();
+                this.setCursor("grabbing");
 
-                return;
+                this.keepCameraConstraintsAndRender();
             }
-
-            this.camera.x -= diffX / this.camera.zoom;
-            this.camera.y -= diffY / this.camera.zoom;
-
-            this.setCursor("grabbing");
-
-            this.keepCameraConstraints();
         });
 
         this.collisions.addEventListener("dragend", () => {
-            this.state.multiSelect.selecting = false;
+            if (this.state.multiSelect.selecting) {
+                this.stopMultiSelect();
+            } else {
+                this.state.multiSelect.dontSelect = false;
+            }
 
             if (this.state.hoveredCell === -1) {
                 this.setCursor("grab");
@@ -258,6 +293,38 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
 
             this.render();
         });
+
+        this.render();
+    }
+
+    stopMultiSelect() {
+        if (this.mode !== "edit") {
+            return;
+        }
+
+        this.state.multiSelect.selecting = false;
+        this.state.multiSelect.dontSelect = false;
+
+        // find all cells in the given multicelect rectangle by using the collisions manager
+        const startX = Math.min(this.state.multiSelect.start.x, this.state.multiSelect.current.x);
+        const startY = Math.min(this.state.multiSelect.start.y, this.state.multiSelect.current.y);
+        const endX = Math.max(this.state.multiSelect.start.x, this.state.multiSelect.current.x);
+        const endY = Math.max(this.state.multiSelect.start.y, this.state.multiSelect.current.y);
+
+        const cellsInRectangle: number[] = [];
+        for (let collision of this.collisions.collisions) {
+            if (collision.x + collision.width >= startX && collision.y + collision.height >= startY
+                && collision.x <= endX && collision.y <= endY) {
+                cellsInRectangle.push(collision.reference);
+            }
+        }
+
+        this.state.selectedCells = Array.from(new Set([...this.state.selectedCells, ...cellsInRectangle]));
+
+        this.state.multiSelect.start = { x: 0, y: 0 };
+        this.state.multiSelect.current = { x: 0, y: 0 };
+
+        this.editMenu?.selectCells(this.state.selectedCells);
 
         this.render();
     }
@@ -353,39 +420,39 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
                 }
             }
 
-            mapContext.keepCameraConstraints();
+            mapContext.keepCameraConstraintsAndRender();
         }
     }
 
     runKeyboardControls() {
         if (this.controller.keysPressed.length > 0) {
-            let multiplier = this.controller.keysPressed.includes("Shift") ? 3 : 1;
+            let movementMultiplier = this.controller.keysPressed.includes("Shift") ? 3 : 1;
 
             if ((this.controller.keysPressed.includes("ArrowUp") || this.controller.keysPressed.includes("ArrowDown"))
                 && (this.controller.keysPressed.includes("ArrowLeft") || this.controller.keysPressed.includes("ArrowRight"))
                 && !(this.controller.keysPressed.includes("ArrowUp") && this.controller.keysPressed.includes("ArrowDown"))
                 && !(this.controller.keysPressed.includes("ArrowLeft") && this.controller.keysPressed.includes("ArrowRight"))) {
-                multiplier /= Math.sqrt(2); // Diagonal movement adjustment when using only two arrow keys that make a diagonal, based on Pythagorean theorem
+                movementMultiplier /= Math.sqrt(2); // Diagonal movement adjustment when using only two arrow keys that make a diagonal, based on Pythagorean theorem
             }
 
             if (this.controller.keysPressed.includes("ArrowUp")) {
-                this.camera.y -= 10 * multiplier;
+                this.camera.y -= 10 * movementMultiplier;
             }
             if (this.controller.keysPressed.includes("ArrowDown")) {
-                this.camera.y += 10 * multiplier;
+                this.camera.y += 10 * movementMultiplier;
             }
             if (this.controller.keysPressed.includes("ArrowLeft")) {
-                this.camera.x -= 10 * multiplier;
+                this.camera.x -= 10 * movementMultiplier;
             }
             if (this.controller.keysPressed.includes("ArrowRight")) {
-                this.camera.x += 10 * multiplier;
+                this.camera.x += 10 * movementMultiplier;
             }
 
-            this.keepCameraConstraints();
+            this.keepCameraConstraintsAndRender();
         }
     }
 
-    keepCameraConstraints() {
+    keepCameraConstraintsAndRender() {
         const maxY = (this.mapHeight) - (this.canvas.height / 2);
         const minY = 0 - (this.canvas.height / 2);
 
@@ -629,6 +696,17 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
                         opacity: opacity
                     });
                 }
+
+                if (this.state.selectedCells.length > 1 && this.state.selectedCells[0] === cellIndex) {
+                    layers[2].push({
+                        type: "path",
+                        x: xPos + 5 * this.camera.zoom,
+                        y: yPos + 5 * this.camera.zoom,
+                        path: SVGPaths.copy,
+                        color: invert(getHexFromCSSColor(backgroundColor)),
+                        opacity: 1
+                    })
+                }
             }
         }
 
@@ -663,6 +741,24 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
                         this.ctx.globalAlpha = instruction.opacity;
                         this.ctx.fillStyle = instruction.color;
                         this.ctx.fillText(instruction.text, instruction.x, instruction.y);
+                    }
+
+                    if (instruction.type === "path") {
+                        this.ctx.globalAlpha = instruction.opacity;
+                        this.ctx.fillStyle = instruction.color;
+                        this.ctx.beginPath();
+                        const matrix = new DOMMatrix();
+                        // Scale so that the path stays the same relative to the renderedcellsize
+                        matrix.scaleSelf(1 / (1 / this.camera.zoom), 1 / (1 / this.camera.zoom));
+                        matrix.scaleSelf(0.12, 0.12);
+
+
+                        const path = new Path2D();
+                        path.addPath(new Path2D(instruction.path), matrix);
+
+                        this.ctx.translate(instruction.x, instruction.y);
+                        this.ctx.fill(path);
+                        this.ctx.translate(-instruction.x, -instruction.y);
                     }
                 }
             }

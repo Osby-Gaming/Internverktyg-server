@@ -305,7 +305,7 @@ export default class EditMenu {
 
     unSelectCell() {
         this.input.blur();
-        
+
         this.elements = [];
 
         this.elements.push({
@@ -356,7 +356,7 @@ export default class EditMenu {
 
         for (let i = 0; i < cellIndexes.length; i++) {
             const cell2 = this.map.mapLayout.cells[cellIndexes[i]];
-            if (!cell2) {
+            if (cell2 === undefined) {
                 console.error(`No cell found at index: ${cellIndexes[i]}`);
 
                 return;
@@ -422,6 +422,20 @@ export default class EditMenu {
 
         const cellIndexes = this.state.selectedCells.indexes;
 
+        let cellToCopy = this.map.mapLayout.cells[cellIndexes[0]];
+
+        if (!cellToCopy) {
+            cellToCopy = {
+                name: cellIndexes[0].toString(),
+                type: this.state.selectedType,
+                styleOverride: {}
+            };
+
+            this.map.mapLayout.cells[cellIndexes[0]] = cellToCopy;
+        }
+
+        let i = 0;
+
         for (let cellIndex of cellIndexes) {
             if (cellIndex < 0 || cellIndex >= this.map.mapLayout.cells.length) {
                 console.error(`Invalid cell index: ${cellIndex}`);
@@ -440,7 +454,15 @@ export default class EditMenu {
                 this.map.mapLayout.cells[cellIndex] = cell;
             }
 
-            if (!cell) {
+            if (i > 0) {
+                // Copy style from the first cell
+                cell.styleOverride = JSON.parse(JSON.stringify(cellToCopy.styleOverride || {}));
+                cell.type = this.state.selectedType;
+
+                continue;
+            }
+
+            if (cell === undefined) {
                 console.error(`No cell found at index: ${cellIndex}`);
                 return;
             }
@@ -477,6 +499,8 @@ export default class EditMenu {
             }
 
             cell.type = this.state.selectedType;
+
+            i++;
         }
 
         this.map.render();

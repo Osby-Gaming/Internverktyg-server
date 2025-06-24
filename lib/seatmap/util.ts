@@ -1,3 +1,5 @@
+import rgbHex from "rgb-hex";
+
 export class FPSCounter {
     public frameCount: number = 0;
     private frames: number[] = [];
@@ -27,10 +29,19 @@ export class EventEmitter<T> {
     }
 
     on<K extends keyof T>(event: K, handler: (value: T[K]) => void): void {
-        if(!this.handlers[event]) {
+        if (!this.handlers[event]) {
             this.handlers[event] = [handler];
         } else {
             this.handlers[event].push(handler);
         }
     }
+}
+
+export function getHexFromCSSColor(color: string) {
+    let d = document.createElement("div");
+    d.style.color = color;
+    document.body.appendChild(d);
+    const rgb = window.getComputedStyle(d).color;
+
+    return "#" + rgbHex(rgb);
 }
