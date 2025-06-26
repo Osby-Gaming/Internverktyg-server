@@ -16,17 +16,10 @@ export const DEFAULT_CELL_STYLES: Record<CellType, CellStyleOverride> = {
         text: "",
         opacity: 1,
         hoverOverride: {
-            backgroundColor: "#0F0",
-            borderColor: "#000",
             borderWidth: 2,
-            text: "",
             opacity: 0.5,
         },
         selectedOverride: {
-            backgroundColor: "#0F0",
-            borderColor: "#000",
-            borderWidth: 2,
-            text: "",
             opacity: 0.2,
         }
     },
@@ -37,18 +30,7 @@ export const DEFAULT_CELL_STYLES: Record<CellType, CellStyleOverride> = {
         text: "",
         opacity: 1,
         hoverOverride: {
-            backgroundColor: "#FFF",
-            borderColor: "#000",
             borderWidth: 2,
-            text: "",
-            opacity: 1,
-        },
-        selectedOverride: {
-            backgroundColor: "#FFF",
-            borderColor: "#000",
-            borderWidth: 2,
-            text: "",
-            opacity: 1,
         }
     },
     wall: {
@@ -58,18 +40,8 @@ export const DEFAULT_CELL_STYLES: Record<CellType, CellStyleOverride> = {
         text: "2",
         opacity: 1,
         hoverOverride: {
-            backgroundColor: "#CCC",
-            borderColor: "#000",
             borderWidth: 2,
-            text: "1",
-            opacity: 1,
-        },
-        selectedOverride: {
-            backgroundColor: "#CCC",
-            borderColor: "#000",
-            borderWidth: 2,
-            text: "1",
-            opacity: 1,
+            text: "1"
         }
     },
     door: {
@@ -79,17 +51,7 @@ export const DEFAULT_CELL_STYLES: Record<CellType, CellStyleOverride> = {
         text: "",
         opacity: 1,
         hoverOverride: {
-            backgroundColor: "#F00",
-            borderColor: "#000",
             borderWidth: 2,
-            text: "",
-            opacity: 0.6,
-        },
-        selectedOverride: {
-            backgroundColor: "#F00",
-            borderColor: "#000",
-            borderWidth: 2,
-            text: "",
             opacity: 0.6,
         }
     },
@@ -100,18 +62,7 @@ export const DEFAULT_CELL_STYLES: Record<CellType, CellStyleOverride> = {
         text: "",
         opacity: 1,
         hoverOverride: {
-            backgroundColor: "#FFF",
-            borderColor: "#000",
             borderWidth: 2,
-            text: "",
-            opacity: 1,
-        },
-        selectedOverride: {
-            backgroundColor: "#FFF",
-            borderColor: "#000",
-            borderWidth: 2,
-            text: "",
-            opacity: 1
         }
     }
 }

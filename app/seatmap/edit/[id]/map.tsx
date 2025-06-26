@@ -3,13 +3,35 @@
 import { MapLayoutInput } from "@/lib/seatmap/types";
 import SeatMap from "@/lib/seatmap/Map";
 import { useEffect } from "react";
+import { createMap, updateMap } from "./actions";
+import { useRouter } from "next/navigation";
 
-export default function Map({ mapLayout }: { mapLayout: MapLayoutInput }) {
+export default function Map({ mapLayout, id}: { mapLayout: MapLayoutInput, id: string }) {
+    const router = useRouter();
+
     useEffect(() => {
         const map = new SeatMap("edit", "seatmap_area", mapLayout, "edit_menu");
         
-        map.on("save", (data) => {
-            console.log("Map saved:", data);
+        map.on("save", async (data) => {
+            if (id === "new") {
+                const mapResult = await createMap(data, "Nytt rum");
+
+                if (mapResult.data === null) {
+                    // TODO
+                    alert("Failed to create map: " + mapResult.message);
+                    return;
+                }
+
+                router.push(`/seatmap/edit/${mapResult.data.$id}`);
+            } else {
+                const mapResult = await updateMap(data, id, "Uppdaterat rum"); 
+                
+                if (mapResult.data === null) {
+                    // TODO
+                    alert("Failed to update map: " + mapResult.message);
+                    return;
+                }
+            }
         })
     })
 

@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { getLoggedInAccount } from "../appwrite_client";
 import { useRouter, usePathname } from "next/navigation";
 
-const guestPaths: string[] = ['/login', '/seatmap', '/logout'];
+const guestPaths: string[] = ['/login', '/seatmap/public', '/logout'];
 
 export default function AuthRouter({
     children,

@@ -195,8 +195,8 @@ export class Appwrite_Common {
         } catch (error: any) {
             if (error.name && error.name === 'AppwriteException') {
                 return {
-                    status: error.code,
-                    message: error.response.message,
+                    status: error.code as number,
+                    message: error.response.message as string,
                     data: null,
                     error
                 }

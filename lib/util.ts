@@ -1,5 +1,7 @@
 import { Models } from "appwrite";
-import { CheckoutItem, VoucherInstructions } from "./types";
+import { CheckoutItem, Response, VoucherInstructions } from "./types";
+import { getParticipantFromSeatmapAccessKey, getRoom } from "./appwrite_server";
+import { Cell, MapLayoutInput, PossibleZoomLevels } from "./seatmap/types";
 
 export function getAgeFromSSN(ssn: string): number {
     const year = parseInt(ssn.slice(0, 4));
@@ -115,4 +117,38 @@ export function generateKittyError(errorReason: string): string {
     　／￣|　　 |　|　|
     　| (￣ヽ＿_ヽ_)__)
     　＼二つ`
+}
+
+/**
+ * Backend only
+ */
+export async function getRoomMapLayout(room_id: string, edit = false, access_key?: string): Promise<Response<MapLayoutInput, string>> {
+    const roomRes = await getRoom(room_id);
+
+    if (roomRes.data === null) {
+        return {
+            status: 404,
+            message: "Room not found",
+            data: null,
+            error: "Room not found"
+        }
+    }
+
+    const { data } = roomRes;
+
+    return {
+        status: 200,
+        message: "Retrieved successfully",
+        data: {
+            x: data.width,
+            y: data.height,
+            cells: JSON.parse(data.cells_json),
+            globalOverride: {
+                backgroundColor: data.background_color ?? undefined,
+                zoomLevel: parseInt(data.zoom_level) as PossibleZoomLevels,
+                cellStyleOverride: JSON.parse(data.cell_style_override)
+            }
+        },
+        error: null
+    };
 }

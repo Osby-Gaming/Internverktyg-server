@@ -9,7 +9,6 @@ const COLLECTION_WRISTBANDS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_WRI
 const COLLECTION_KIOSK_ITEMS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_KIOSK_ITEMS_ID || '';
 const COLLECTION_KIOSK_PURCHASES_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_KIOSK_PURCHASES_ID || '';
 const COLLECTION_KIOSK_VOUCHERS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_KIOSK_VOUCHERS_ID || '';
-const COLLECTION_SEATINGS_ID = process.env.NEXT_PUBLIC_APPWRITE_COLLECTION_SEATINGS_ID || '';
 const PROJECT_ID = process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '';
 
 if (!PROJECT_ID) {
@@ -29,9 +28,6 @@ if (!COLLECTION_KIOSK_PURCHASES_ID) {
 }
 if (!COLLECTION_KIOSK_VOUCHERS_ID) {
     throw new Error('Missing required environment variable NEXT_PUBLIC_APPWRITE_COLLECTION_KIOSK_VOUCHERS_ID');
-}
-if (!COLLECTION_SEATINGS_ID) {
-    throw new Error('Missing required environment variable NEXT_PUBLIC_APPWRITE_COLLECTION_SEATINGS_ID');
 }
 
 export function getAppwriteClient() {
@@ -233,15 +229,6 @@ export async function getWristband(number: number, include?: string[]) {
 
     return COMMONLIB.listOneDocument(COLLECTION_WRISTBANDS_ID, queries);
 }
-export async function getSeat(id: string, include?: string[]) {
-    const queries = [];
-
-    if (include) {
-        queries.push(Query.select(include));
-    }
-
-    return COMMONLIB.getDocument(COLLECTION_SEATINGS_ID, id, queries);
-}
 
 export async function getKioskItems(include?: string[]) {
     const queries = [];
@@ -319,16 +306,3 @@ export async function placeKioskPurchase(kioskItems: CheckoutItem[], wristbandID
         kioskVouchers
     })
 }
-
-export async function getAllSeats(include?: string[]) {
-    const queries = [
-        Query.limit(9999)
-    ];
-
-    if (include) {
-        queries.push(Query.select(include));
-    }
-
-    return COMMONLIB.listDocuments(COLLECTION_SEATINGS_ID, queries);
-}
-

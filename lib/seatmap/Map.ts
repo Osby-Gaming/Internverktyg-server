@@ -5,7 +5,7 @@ import EditMenu from "./EditMenu";
 import { Cell, CellStyleOverride, Collision, MapLayout, MapLayoutInput, MapMode, MapRenderInstruction } from "./types";
 import { EventEmitter, FPSCounter, getHexFromCSSColor } from "./util";
 
-export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
+export default class Map extends EventEmitter<{ save: MapLayoutInput, select: number }> {
     mode: MapMode;
     canvas: HTMLCanvasElement;
     ctx: CanvasRenderingContext2D | null;
@@ -228,8 +228,12 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
             } else {
                 if (this.state.selectedCells.includes(collision.reference)) {
                     this.state.selectedCells = [];
+
+                    this.emit("select", -collision.reference);
                 } else {
                     this.state.selectedCells = [collision.reference];
+                    
+                    this.emit("select", collision.reference);
                 }
             }
 
@@ -813,7 +817,9 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput }> {
                 Object.assign(style, cell.styleOverride.hoverOverride);
             }
         }
+
         if (selectedState) {
+            Object.assign(style, DEFAULT_CELL_STYLES[cell.type].hoverOverride);
             Object.assign(style, DEFAULT_CELL_STYLES[cell.type].selectedOverride);
             Object.assign(style, cell.styleOverride || {});
             Object.assign(style, cell.styleOverride?.hoverOverride || {});
