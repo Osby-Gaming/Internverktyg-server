@@ -34,14 +34,14 @@ export const DEFAULT_CELL_STYLES: Record<CellType, CellStyleOverride> = {
         }
     },
     wall: {
-        backgroundColor: "#CCC",
+        backgroundColor: "gray",
         borderColor: "#000",
         borderWidth: 1,
-        text: "2",
+        text: "",
         opacity: 1,
         hoverOverride: {
             borderWidth: 2,
-            text: "1"
+            text: ""
         }
     },
     door: {
@@ -88,6 +88,7 @@ export const EDITMENU_LABELS: Record<string, string> = {
     btn_export: "Export",
     btn_toggle_preview: "Toggle Preview",
     btn_save: "Save",
+    locked_cells_warning: "Some selected cells are locked and cannot be edited.",
 };
 
 export const CELL_STYLE_KEYS = Object.keys(EDITMENU_LABELS).slice(0, 5);

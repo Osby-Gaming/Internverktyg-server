@@ -17,6 +17,8 @@ export class Appwrite_Common {
     }
 
     async listOneDocument(collectionID: string, queries: string[]) {
+        queries.push(frontend.Query.limit(1));
+        
         const response = await this.listDocuments(collectionID, queries);
     
         const responseCopy = JSON.parse(JSON.stringify(response)) as {

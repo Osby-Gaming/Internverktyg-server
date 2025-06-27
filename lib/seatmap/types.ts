@@ -28,6 +28,7 @@ export type PossibleZoomLevels = 0.8 | 1 | 1.2 | 1.5 | 2 | 3 | 4 | 5 | 6;
 export type MapLayoutInput = {
     x: number;
     y: number;
+    highestSeatNumber: number; // used to generate seat numbers
     cells: (Cell | `${number}`)[]; // putting an Int will create the Ints amount of null cells
     globalOverride?: {
         backgroundColor?: string;
@@ -45,6 +46,7 @@ export type MapLayoutInput = {
 export type MapLayout = {
     x: number;
     y: number;
+    highestSeatNumber: number;
     cells: Cell[];
     globalOverride: {
         backgroundColor: string;
@@ -111,7 +113,7 @@ export type EditMenuElement = {
     elements: EditMenuElement[];
 })
 
-export type MapMode = "view" | "edit" | "preview";
+export type MapMode = "view" | "edit" | "preview" | "no-interact";
 
 export type CollisionCallback<ref> = ((collision: Collision<ref>, buttons?: MouseButtons[]) => void);
 export type DragCallback = ((diffX: number, diffY: number, buttons: MouseButtons[]) => void);

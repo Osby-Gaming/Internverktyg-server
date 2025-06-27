@@ -10,6 +10,7 @@ export async function createMap(data: MapLayoutInput, roomName: string): Promise
         claims: null,
         width: data.x,
         height: data.y,
+        highest_seat_number: data.highestSeatNumber,
         zoom_level: (data.globalOverride?.zoomLevel ?? 1).toString() as `${PossibleZoomLevels}`,
         background_color: data.globalOverride?.backgroundColor ?? null,
         cell_style_override: JSON.stringify(data.globalOverride?.cellStyleOverride ?? {}),

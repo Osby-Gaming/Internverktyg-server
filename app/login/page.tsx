@@ -52,7 +52,7 @@ export default function Page() {
         router.push('/');
       }
     })
-  })
+  },  []);
 
   return (
     <form id="loginForm">

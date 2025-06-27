@@ -60,21 +60,25 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput, select: nu
     lastFrame: MapRenderInstruction[][] = [];
     lastFrameTimestamp: number = 0;
 
-    static inputProcessing(input: MapLayoutInput) {
-        const processedObjects: Cell[] = [];
+    static processInputCells(cells: (Cell | `${number}`)[]): Cell[] {
+        const processedCells: Cell[] = [];
 
-        for (let i = 0; i < input.cells.length; i++) {
-            const cell = input.cells[i];
-
+        for (const cell of cells) {
             if (typeof cell === "string") {
                 const count = parseInt(cell, 10);
                 for (let j = 0; j < count; j++) {
-                    processedObjects.push(null);
+                    processedCells.push(null);
                 }
             } else {
-                processedObjects.push(cell);
+                processedCells.push(cell);
             }
         }
+
+        return processedCells;
+    }
+
+    static inputProcessing(input: MapLayoutInput) {
+        const processedObjects: Cell[] = Map.processInputCells(input.cells);
 
         if (processedObjects.length !== input.x * input.y) {
             throw new Error(`Invalid map layout: expected ${input.x * input.y} cells, got ${processedObjects.length}`);
@@ -83,6 +87,7 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput, select: nu
         return {
             x: input.x,
             y: input.y,
+            highestSeatNumber: input.highestSeatNumber,
             cells: processedObjects,
             globalOverride: {
                 backgroundColor: input.globalOverride?.backgroundColor || DEFAULT_MAP_BACKGROUND_COLOR,
@@ -98,7 +103,7 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput, select: nu
         } as MapLayout;
     }
 
-    constructor(mode: MapMode, canvasId: string, mapLayout: MapLayoutInput, editMenuId?: string) {
+    constructor(mode: MapMode, canvasId: string, mapLayout: MapLayoutInput, editMenuId?: string, toolbeltId?: string, lockedCells: number[] = []) {
         super();
         this.mode = mode;
 
@@ -133,7 +138,7 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput, select: nu
 
             el.style.display = "block";
 
-            this.editMenu = new EditMenu(this, editMenuId);
+            this.editMenu = new EditMenu(this, editMenuId, lockedCells, toolbeltId || '');
         }
 
         this.canvas.addEventListener("wheel", (event) => {
@@ -232,7 +237,7 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput, select: nu
                     this.emit("select", -collision.reference);
                 } else {
                     this.state.selectedCells = [collision.reference];
-                    
+
                     this.emit("select", collision.reference);
                 }
             }
@@ -245,6 +250,10 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput, select: nu
         })
 
         this.collisions.addEventListener("drag", (diffX: number, diffY: number, mouseButtons: MouseButtons[]) => {
+            if (this.mode === "no-interact") {
+                return;
+            }
+
             if (mouseButtons.includes(MouseButtons.RIGHT)) {
                 if (this.mode === "edit") {
                     if (!this.state.multiSelect.dontSelect) {
@@ -283,6 +292,10 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput, select: nu
         });
 
         this.collisions.addEventListener("dragend", () => {
+            if (this.mode === "no-interact") {
+                return;
+            }
+
             if (this.state.multiSelect.selecting) {
                 this.stopMultiSelect();
             } else {
@@ -297,6 +310,14 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput, select: nu
 
             this.render();
         });
+
+        this.render();
+    }
+
+    switchLayout(mapLayout: MapLayoutInput) {
+        this.mapLayout = Map.inputProcessing(mapLayout);
+        this.mapWidth = mapLayout.x * CELL_SIZE;
+        this.mapHeight = mapLayout.y * CELL_SIZE;
 
         this.render();
     }
@@ -653,13 +674,15 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput, select: nu
                     continue;
                 }
 
-                collisions.push({
-                    x: xPos,
-                    y: yPos,
-                    width: renderedCellSize,
-                    height: renderedCellSize,
-                    reference: cellIndex
-                });
+                if (this.mode !== "view" || (this.mode === "view" && cell.type === "seat")) {
+                    collisions.push({
+                        x: xPos,
+                        y: yPos,
+                        width: renderedCellSize,
+                        height: renderedCellSize,
+                        reference: cellIndex
+                    });
+                }
 
                 layers[1].push({
                     type: "strokerect",
@@ -770,7 +793,10 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput, select: nu
             this.lastFrame = layers;
         }
 
-        this.collisions.registerCollisions(collisions);
+
+        if (this.mode !== "no-interact") {
+            this.collisions.registerCollisions(collisions);
+        }
 
         if (this.mode === "edit" || this.mode === "preview") {
             this.ctx.font = `${16}px Arial`;
@@ -801,6 +827,10 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput, select: nu
         }
 
         let style = { ...DEFAULT_CELL_STYLES[cell.type] } as { backgroundColor: string, borderColor: string, borderWidth: number, text: string, opacity: number }
+
+        if (cell.type === "seat" && cell.name) {
+            style.text = cell.name;
+        }
 
         for (const key in style) {
             if (key === "hoverOverride" || key === "selectedOverride") continue;
@@ -878,6 +908,7 @@ export default class Map extends EventEmitter<{ save: MapLayoutInput, select: nu
         const exportData: MapLayoutInput = {
             x: this.mapLayout.x,
             y: this.mapLayout.y,
+            highestSeatNumber: this.mapLayout.highestSeatNumber,
             cells: cells,
             globalOverride: {
                 backgroundColor: this.mapLayout.globalOverride.backgroundColor,

@@ -1,5 +1,5 @@
+import { getRoomMapLayout } from "@/lib/appwrite_server";
 import Map from "./map";
-import { getRoomMapLayout } from "@/lib/util";
 
 export default async function Page({
     params,
@@ -21,9 +21,9 @@ export default async function Page({
         return <div className="text-red-500">Det gick inte att ladda rummet: {roomRes?.message || "Okänt fel"}</div>;
     }
 
-    let mapLayout = roomRes.data;
+    let [mapLayout, availability] = roomRes.data;
 
     return (
-        <Map mapLayout={mapLayout} id={id}></Map>
+        <Map mapLayout={mapLayout} id={id} accessKey={accessKey} claimedSeats={availability}></Map>
     );
 }

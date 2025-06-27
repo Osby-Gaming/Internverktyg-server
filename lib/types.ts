@@ -1,5 +1,5 @@
 import { Models } from "appwrite";
-import { CellType, PossibleZoomLevels } from "./seatmap/types";
+import { PossibleZoomLevels } from "./seatmap/types";
 
 export type Response<T, E> = {
     status: number;
@@ -110,6 +110,7 @@ export interface MapRoomModelAppWrite {
     claims: MapSeatClaimModelAppWrite[] | null;
     width: number;
     height: number;
+    highest_seat_number: number;
     background_color: string | null;
     zoom_level: `${PossibleZoomLevels}`;
     cell_style_override: string;

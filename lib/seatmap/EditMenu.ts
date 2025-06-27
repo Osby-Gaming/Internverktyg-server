@@ -1,8 +1,58 @@
 import CollisionManager from "./CollisionManager";
 import { CELL_STYLE_KEYS, EDITMENU_LABELS } from "./data";
 import { CellState, CellStyleOverride, CellStyleOverridePure, CellType, Collision, EditMenuElement, EditMenuState } from "./types";
-import { FPSCounter } from "./util";
+import { EventEmitter, FPSCounter } from "./util";
 import Map from "./Map";
+
+class Toolbelt extends EventEmitter<{
+    generateSeatLabels: void;
+    deleteCells: void;
+}> {
+    el: HTMLElement;
+
+    buttons: {
+        generateSeatLabels: HTMLButtonElement,
+        deleteCells: HTMLButtonElement
+    };
+
+    constructor(toolbeltId: string) {
+        super();
+
+        const element = document.getElementById(toolbeltId);
+
+        if (!element) {
+            throw new Error("Toolbelt element not found")
+        }
+
+        this.el = element;
+
+        const generateSeatLabels = this.el.querySelector("button#generate-labels") as HTMLButtonElement;
+        if (!generateSeatLabels) {
+            throw new Error("Generate labels button not found in toolbelt");
+        }
+
+        const deleteCells = this.el.querySelector("button#delete-cells") as HTMLButtonElement;
+        if (!deleteCells) {
+            throw new Error("Delete cells button not found in toolbelt");
+        }
+
+        this.buttons = {
+            generateSeatLabels,
+            deleteCells
+        }
+
+        this.setListeners();
+    }
+
+    private setListeners() {
+        this.buttons.generateSeatLabels.addEventListener("click", () => {
+            this.emit("generateSeatLabels", undefined);
+        });
+        this.buttons.deleteCells.addEventListener("click", () => {
+            this.emit("deleteCells", undefined);
+        });
+    }
+}
 
 export default class EditMenu {
     map: Map;
@@ -11,9 +61,13 @@ export default class EditMenu {
     ctx: CanvasRenderingContext2D;
     input: HTMLInputElement;
 
+    toolbelt: Toolbelt;
+
     collisions: CollisionManager<string>;
 
     fpsCounter: FPSCounter = new FPSCounter();
+
+    lockedCells: number[];
 
     /**
      * State must always be stringifyable.
@@ -41,8 +95,10 @@ export default class EditMenu {
 
     elements: EditMenuElement[] = [];
 
-    constructor(map: Map, editMenuId: string) {
+    constructor(map: Map, editMenuId: string, lockedCells: number[], toolbeltId: string) {
         this.map = map;
+
+        this.lockedCells = lockedCells;
 
         const canvas = document.querySelector(`#${editMenuId} > canvas`);
         if (canvas === null) {
@@ -64,6 +120,15 @@ export default class EditMenu {
         }
 
         this.input = input as HTMLInputElement;
+
+        this.toolbelt = new Toolbelt(toolbeltId);
+
+        this.toolbelt.on("generateSeatLabels", () => {
+            this.generateSeatLabels();
+        })
+        this.toolbelt.on("deleteCells", () => {
+            this.deleteCells();
+        });
 
         this.input.addEventListener("input", event => this.handleInputChange(event));
 
@@ -125,6 +190,58 @@ export default class EditMenu {
         this.unSelectCell();
 
         this.render();
+    }
+
+    private deleteCells() {
+        const selection = this.state.selectedCells?.indexes || [];
+
+        for (const index of selection) {
+            if (this.lockedCells.includes(index)) {
+                continue;
+            }
+
+            this.map.mapLayout.cells[index] = null;
+        }
+
+        this.unSelectCell();
+        this.selectCells(selection);
+
+        this.map.render();
+    }
+
+    private generateSeatLabels() {
+        if (!this.map || !this.map.mapLayout || !this.map.mapLayout.cells) {
+            console.error("Map or map layout is not defined.");
+            return;
+        }
+
+        const cells = this.state.selectedCells?.indexes;
+
+        if (!cells || cells.length === 0) {
+            console.error("No cells selected for generating labels.");
+            return;
+        }
+
+        for (let i = 0; i < cells.length; i++) {
+            const index = cells[i];
+            const cell = this.map.mapLayout.cells[index];
+
+            if (cell === null) {
+                this.map.mapLayout.cells[index] = {
+                    name: (++this.map.mapLayout.highestSeatNumber).toString(),
+                    type: "seat",
+                    styleOverride: {}
+                }
+
+                continue;
+            }
+
+            if (cell.type === "seat" && cell.name === undefined) {
+                cell.name = (++this.map.mapLayout.highestSeatNumber + 1).toString();
+            }
+        }
+
+        this.map.render();
     }
 
     selectInput(input: number) {
@@ -401,7 +518,16 @@ export default class EditMenu {
             action: () => this.applyToMap()
         })
 
-        this.elements = elements;
+        if (this.lockedCells.some(index => cellIndexes.includes(index))) {
+            this.elements = [
+                {
+                    type: "label",
+                    label: "locked_cells_warning"
+                }
+            ]
+        } else {
+            this.elements = elements;
+        }
 
         const cell = this.map.mapLayout.cells[cellIndexes[0]];
 
@@ -426,7 +552,7 @@ export default class EditMenu {
 
         if (!cellToCopy) {
             cellToCopy = {
-                name: cellIndexes[0].toString(),
+                name: undefined,
                 type: this.state.selectedType,
                 styleOverride: {}
             };
@@ -446,12 +572,16 @@ export default class EditMenu {
 
             if (cell === null) {
                 cell = {
-                    name: cellIndex.toString(),
+                    name: undefined,
                     type: this.state.selectedType,
                     styleOverride: {}
                 };
 
                 this.map.mapLayout.cells[cellIndex] = cell;
+            }
+
+            if (this.state.selectedType === "seat" && cell.name === undefined) {
+                cell.name = (++this.map.mapLayout.highestSeatNumber).toString();
             }
 
             if (i > 0) {
@@ -552,11 +682,31 @@ export default class EditMenu {
             if (element.type === "label") {
                 this.ctx.fillStyle = "#FFF";
                 this.ctx.font = `16px Arial`;
-                this.ctx.fillText(label, paddingX, lastElementYEnd);
 
-                const textMeasurements = this.ctx.measureText(label);
+                const lines = [""];
+                const words = label.split(" ");
 
-                lastElementYEnd += textMeasurements.actualBoundingBoxAscent + textMeasurements.actualBoundingBoxDescent + marginY;
+                for (const word of words) {
+                    lines[lines.length - 1] += word + " "
+
+                    const textMeasurements = this.ctx.measureText(lines[lines.length - 1].trim());
+
+                    if (textMeasurements.width > inputWidth) {
+                        lines[lines.length - 1] = lines[lines.length - 1].slice(0, -word.length - 1).trim();
+
+                        lines.push(word + " ")
+                    }
+                }
+
+                for (let line of lines) {
+                    this.ctx.fillText(line, paddingX, lastElementYEnd);
+
+                    const textMeasurements = this.ctx.measureText(line)
+
+                    lastElementYEnd += textMeasurements.actualBoundingBoxAscent + textMeasurements.actualBoundingBoxDescent + marginY / 3;
+                }
+
+                lastElementYEnd += marginY;
             } else if (element.type === "input") {
                 this.ctx.fillStyle = "#FFF";
                 this.ctx.font = `16px Arial`;

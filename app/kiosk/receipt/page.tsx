@@ -74,7 +74,7 @@ export default function Page() {
                 }
             }
         })()
-    }, [id, router]);
+    }, []);
 
     if (!id) {
         router.push('/kiosk');
